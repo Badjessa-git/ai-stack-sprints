@@ -1,0 +1,72 @@
+It is a truth universally acknowledged, that a single man in possession of a
+good fortune, must be in want of a wife. However little known the feelings or
+views of such a man may be on his first entering a neighbourhood, this truth
+is so well fixed in the minds of the surrounding families, that he is
+considered the rightful property of some one or other of their daughters.
+"My dear Mr. Bennet," said his lady to him one day, "have you heard that
+Netherfield Park is let at last?" Mr. Bennet replied that he had not. "But
+it is," returned she; "for Mrs. Long has just been here, and she told me all
+about it." Mr. Bennet made no answer. "Do you not want to know who has taken
+it?" cried his wife impatiently. "You want to tell me, and I have no
+objection to hearing it." This was invitation enough.
+
+It was the best of times, it was the worst of times, it was the age of
+wisdom, it was the age of foolishness, it was the epoch of belief, it was
+the epoch of incredulity, it was the season of Light, it was the season of
+Darkness, it was the spring of hope, it was the winter of despair, we had
+everything before us, we had nothing before us, we were all going direct to
+Heaven, we were all going direct the other way — in short, the period was so
+far like the present period, that some of its noisiest authorities insisted
+on its being received, for good or for evil, in the superlative degree of
+comparison only.
+
+Shall I compare thee to a summer's day? Thou art more lovely and more
+temperate: rough winds do shake the darling buds of May, and summer's lease
+hath all too short a date: sometime too hot the eye of heaven shines, and
+often is his gold complexion dimmed; and every fair from fair sometime
+declines, by chance or nature's changing course untrimmed; but thy eternal
+summer shall not fade nor lose possession of that fair thou owest; nor
+shall Death brag thou wanderest in his shade, when in eternal lines to time
+thou growest: so long as men can breathe or eyes can see, so long lives
+this and this gives life to thee.
+
+Four score and seven years ago our fathers brought forth on this continent,
+a new nation, conceived in Liberty, and dedicated to the proposition that
+all men are created equal. Now we are engaged in a great civil war, testing
+whether that nation, or any nation so conceived and so dedicated, can long
+endure. We are met on a great battle-field of that war. We have come to
+dedicate a portion of that field, as a final resting place for those who
+here gave their lives that that nation might live. It is altogether fitting
+and proper that we should do this.
+
+The machine does not read. This is the first thing to understand about the
+machine that reads. It counts. Before a model can attend to a sentence,
+before it can weigh one word against another, the sentence must be cut into
+pieces and the pieces must be given numbers. The cutting is not a small
+thing. The cutting decides what the machine can see. A word that is cut into
+three pieces is three things, not one thing. A word that is never cut is a
+single number in a very large table. Everything that follows, every layer
+and every weight and every clever trick of the architecture, operates on
+the pieces and never on the original text. The text is gone by then. Only
+the numbers remain.
+
+Compression and meaning are not the same thing, but they are neighbours.
+A good compression scheme notices that some sequences occur again and again,
+and it gives those sequences a shorter name. A good tokenizer does the same
+thing for language. The pair of letters that occurs most often earns a name
+of its own. Then the pair that includes that new name, if it too occurs
+again and again, earns a name of its own in turn. Meaning is not consulted.
+Frequency is consulted, and frequency alone. And yet, out of pure frequency,
+units emerge that look suspiciously like meaning: common endings, common
+beginnings, whole common words. The algorithm knows nothing about words.
+The corpus knows, and the counting reveals it.
+
+When we say the model is confused, we often mean the cutting was strange.
+Ask the machine how many letters are in a word and it must answer about a
+thing it has never seen. It has seen the pieces. It has counted the pieces
+a million times, and it knows what usually follows them, and it knows what
+usually precedes them, but the letters inside a piece are hidden from it,
+folded into a single number. This is not a failure of intelligence. It is a
+consequence of the cut, made before intelligence enters the room, made by
+counting pairs of bytes in a corpus and merging the most frequent pair
+again and again until the vocabulary is full.
