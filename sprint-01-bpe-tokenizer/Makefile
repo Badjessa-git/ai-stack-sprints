@@ -1,4 +1,4 @@
-.PHONY: test equivalence test-all benchmark compare
+.PHONY: test equivalence test-all benchmark compare profile
 
 # Part 1 correctness suite (15 tests)
 test:
@@ -19,3 +19,7 @@ benchmark:
 # Part 2 before/after timing: frozen v1 vs current implementation
 compare:
 	python3 part2/compare.py
+
+# Part 2 cProfile breakdown: which functions eat the time, v1 vs current
+profile:
+	python3 part2/profiler.py
