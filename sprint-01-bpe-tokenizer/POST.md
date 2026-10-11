@@ -1,6 +1,6 @@
 ---
 title: "Rebuilding the AI Stack by Hand, Part 1: Building a BPE Tokenizer"
-published: false
+published: true
 description: "For the first sprint in my challenge to rebuild the AI stack by hand, I implemented a byte-pair encoding tokenizer from scratch. This is how it works, where decoding broke, and what the benchmarks showed."
 tags: ai, python, machinelearning, programming
 series: "Rebuilding the AI Stack by Hand"
