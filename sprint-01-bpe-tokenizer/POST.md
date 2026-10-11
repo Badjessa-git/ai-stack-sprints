@@ -35,7 +35,9 @@ Target: 900–1,500 words. Your words first; editing comes after a full draft ex
 
    At 256 no merges occurs and the number of tokens is the same as the input size which is expected. This is the possible bytes from regular text encoding so no training truly occurs there. 
 
-   We observe that the number of merges increases as the vocab sizes increases but the the number of tokens generated decreases. At size 512 we see a 40% reduction in the number of bytes returned, a valuable learnings here is that vocab increase reduces number of tokens which I would assume is good for processing but it is at a cost of time spent on training and number of iteration. At a truly large value, we would see the number of tokens be lower but the time to train would take a lot longer because of the iteration process.
+   We observe that the number of merges increases as the vocab sizes increases but the the number of tokens generated decreases. At size 512 we see a 59.5% reduction in the number of bytes returned, a valuable learnings here is that vocab increase reduces number of tokens which means shorter sequences and less processing per request but it is at a cost of time spent on training and number of iteration. At a truly large value, we would see the number of tokens be lower but the time to train would take a lot longer because of the iteration process.
+
+   Another interesting observation is the number of tokens cut down as vocab size increases decreases 256 -> 384 => 2300 and 384 -> 512 => 464. This is because the most frequent pairs are eaten up first and merge_pairs go after rarer pairs, we observer diminishing returns as we increase the sizes so finding the right tradeoffs based on your training set is important to avoid wasting compute
 
 6. **Why this data structure.** Merge rank as dict insertion order; re-counting
    pairs from scratch every round vs incremental updates — cost vs simplicity.
