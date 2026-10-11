@@ -18,6 +18,75 @@ and they must stay green the whole time — along with the original 15 tests
 Unlike Part 1, these tests pass *before* you start. Your job is to keep
 them passing while the benchmark numbers move.
 
+## Why this part exists
+
+Part 1 proved you can build the thing. But "correct" is only half of
+engineering — the other half is "fast enough, and provably still correct."
+That is this part.
+
+It also mirrors what the industry actually did with this exact algorithm.
+BPE tokenization runs on *every* LLM request, so production tokenizers
+are not naive Python: OpenAI's tiktoken is a Python library with a Rust
+core, and Hugging Face's "fast" tokenizers are bindings around a Rust
+crate. Your v1 → v2 pass replays that story at small scale: same
+algorithm, same outputs, engineered until it's fast.
+
+And it sets up the rest of the series. The recurring trick in the AI
+stack is **never recompute what didn't change**. Incremental pair counts
+here are the same idea as the KV cache in Sprint 6 (don't recompute
+attention for tokens already processed) and the caching you'll meet in
+Sprint 2's autograd engine. Part 2 is where you learn that pattern with
+training wheels on.
+
+## What you're actually learning
+
+- **Measure before you optimize.** Your v1 baselines (~140 KB corpus):
+  train 5.6s, encode 3.9s, decode 0.37s per 30k tokens. Decode *feels*
+  like the dumb code, but it's a single-digit share of the total —
+  optimizing it first would barely move anything. That's Amdahl's law
+  in practice: a speedup only matters in proportion to the share of
+  time it removes.
+- **Optimization under an identical-output rule.** Production performance
+  work happens against golden outputs and regression tests — exactly
+  like the equivalence suite here. The skill is changing the *cost*
+  without changing the *semantics*, including sneaky semantics like
+  tie-breaking order.
+- **Trading memory for time.** The decode table spends a little memory
+  (one bytes object per token id) to delete repeated work. You'll meet
+  this trade everywhere: embeddings, caches, materialized views.
+- **Algorithmic vs. constant-factor wins.** Max-instead-of-sort keeps the
+  same scan but does less work per round; incremental pair counts change
+  the complexity of training itself. Knowing which kind of win you're
+  getting tells you where the ceiling is.
+
+## Discuss with Cleo during review (before writing the post)
+
+Standing rule since Part 1: the post only asks you to explain things
+we've actually covered together. Our review-session checklist:
+
+- [ ] Why production tokenizers are Rust (tiktoken, HF tokenizers), and
+      what that says about where tokenization sits in inference latency
+- [ ] Pretokenization: GPT-2/GPT-4 split text with a regex *before* BPE
+      merges run — a step your v1 skips entirely; what it changes
+- [ ] Where the remaining time goes after targets 1–2 (profile the code;
+      don't guess)
+- [ ] The vocabulary-size trade-off at production scale — Part 1's
+      discussion, one level deeper (embedding tables, rare tokens,
+      multilingual effects)
+
+## Resources
+
+- Sennrich, Haddow & Birch, *Neural Machine Translation of Rare Words
+  with Subword Units* (2016) — the paper that brought BPE to NLP:
+  https://arxiv.org/abs/1508.07909
+- Andrej Karpathy, *Let's build the GPT Tokenizer* (video) — builds a
+  GPT tokenizer from scratch and tours how tiktoken differs:
+  https://www.youtube.com/watch?v=zduSFxRajkE — companion code:
+  https://github.com/karpathy/minbpe
+- Hugging Face, *Summary of the tokenizers* — BPE, WordPiece, and
+  Unigram compared, including byte-level BPE:
+  https://huggingface.co/docs/transformers/v4.47.1/tokenizer_summary
+
 ## The targets (in order)
 
 ### 1. `train`: stop sorting the whole stats dict every round
