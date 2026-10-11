@@ -18,8 +18,9 @@ Target: 900–1,500 words. Your words first; editing comes after a full draft ex
 
 
 2. **My mental model before I started.** How did you *think* tokenization
-   worked on Friday? Be specific — this section is only honest if you write
-   it before Sunday's version of you rewrites history.
+   I didn't think much about Tokenization before I started this, I knew that it was involved with LLMs so that they could understand our input but have never looked too much at it. The closest thing I did to transforming output is in my chess game at https://github.com/Badjessa-git/wizardchess3d (Muse can you look up an example from there I don't remember).
+
+   I think the naive way I was thinking about it is that it was split by some delimiter so transformation was applied to the split for efficiency purpose and then sent to the models brain.
 
 3. **The naive build.** Pair counting → merge → repeat. Where did your first
    version's logic live, and what did the code look like at its simplest?
