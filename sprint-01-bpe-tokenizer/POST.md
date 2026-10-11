@@ -24,6 +24,18 @@ Target: 900–1,500 words. Your words first; editing comes after a full draft ex
 
 5. **The numbers.** Quote `make benchmark`: tokens vs bytes at each vocab
    size. What surprised you about the compression curve?
+   
+   I also ran some benchmarks with various vocab sizes on the same corpus
+   Note: The corpus is quite small so this doesn't tell us if this approach will work well at scale, I'm mostly curious here about token the size in relation to vocab increase.
+
+   corpus: 4,644 chars / 4,646 bytes
+   vocab= 256  merges=  0  tokens= 4,646  ratio=100.00%  bytes/token=1.00  train=0.00s  encode=0.000s
+   vocab= 384  merges=128  tokens= 2,346  ratio=50.50%  bytes/token=1.98  train=0.10s  encode=0.041s
+   ocab= 512  merges=256  tokens= 1,882  ratio=40.51%  bytes/token=2.47  train=0.18s  encode=0.070s
+
+   At 256 no merges occurs and the number of tokens is the same as the input size which is expected. This is the possible bytes from regular text encoding so no training truly occurs there. 
+
+   We observe that the number of merges increases as the vocab sizes increases but the the number of tokens generated decreases. At size 512 we see a 40% reduction in the number of bytes returned, a valuable learnings here is that vocab increase reduces number of tokens which I would assume is good for processing but it is at a cost of time spent on training and number of iteration. At a truly large value, we would see the number of tokens be lower but the time to train would take a lot longer because of the iteration process.
 
 6. **Why this data structure.** Merge rank as dict insertion order; re-counting
    pairs from scratch every round vs incremental updates — cost vs simplicity.
