@@ -53,19 +53,33 @@ def profile(label: str, fn) -> None:
 
 
 def main() -> None:
-    def train(module):
-        tok = module.BPETokenizer()
+    def train(tok):
         tok.train(BIG_TEXT, TRAIN_VOCAB)
         return tok
 
-    profile("TRAIN — v1 (frozen)", lambda: train(v1))
-    profile("TRAIN — current", lambda: train(v2))
+    def encode(tok):
+        tok.encode(BIG_TEXT)[:DECODE_TOKENS]
+        return tok
 
-    tok = v2.BPETokenizer()
-    tok.train(CORPUS, ENCODE_VOCAB)
-    profile("ENCODE — current", lambda: tok.encode(BIG_TEXT))
+    def decode(tok, ids):
+        tok.decode(ids)
+        return tok
+    
+    tok = v1.BPETokenizer()
+    tok_v2 = v2.BPETokenizer()
+
+    profile("TRAIN — v1 (frozen)", lambda: train(tok))
+    profile("TRAIN — current", lambda: train(tok_v2))
+
+    tok.train(BIG_TEXT, TRAIN_VOCAB)
+    tok_v2.train(BIG_TEXT, TRAIN_VOCAB)
+    profile("ENCODE — v1 (frozen)", lambda: encode(tok=tok))
+    profile("ENCODE — current", lambda: encode(tok=tok_v2))
+
     ids = tok.encode(BIG_TEXT)[:DECODE_TOKENS]
-    profile(f"DECODE — current [{DECODE_TOKENS} tokens]", lambda: tok.decode(ids))
+    ids_v2 = tok_v2.encode(BIG_TEXT)[:DECODE_TOKENS]
+    profile("DECODE — v1 (frozen)", lambda: decode(tok, ids))
+    profile("DECODE — current", lambda: decode(tok_v2, ids_v2))
 
 
 if __name__ == "__main__":

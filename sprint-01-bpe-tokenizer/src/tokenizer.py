@@ -79,6 +79,7 @@ class BPETokenizer:
 
     def __init__(self) -> None:
         self.merges: dict[tuple[int, int], int] = {}
+        self.__byte_lookup_table: dict[int, tuple[int, int]] = {}
 
     # -- training ---------------------------------------------------------
 
@@ -102,24 +103,53 @@ class BPETokenizer:
 
         if vocab_size < MIN_VOCAB_SIZE:
             raise ValueError("Vocab size bigger than alloted value")
+
+        self.merges = {}
+        self.__byte_lookup_table = {}
         
         i = 0
         id = 256
         token_ids = list(text.encode("utf-8"))
+
+        # Optimization instead of sorting the algorithm, we walk through it once and keep track of the 
         while i < vocab_size - MIN_VOCAB_SIZE:
             stats = get_stats(token_ids=token_ids)
             if not stats:
                 break;
             
-            pairs = dict(sorted(stats.items(), key=lambda item:item[1], reverse=True))
-            (left, right), value = next(iter(pairs.items()))
+            (left, right), value = self.__find_max_frequency_pair(stats)
             if value < min_frequency:
                 break
 
             self.merges[(left, right)] = id
             token_ids = merge_pair(token_ids=token_ids, pair=(left, right), new_id=id)
+            self.__byte_lookup_table[id] = (left, right)
             i += 1 # increase pointer
             id += 1 # new ids
+
+    def __find_max_frequency_pair(self, stats: dict[tuple[int, int], int]) -> tuple[tuple[int, int], int]:
+        """
+        Return the max frequency pair found in the token_ids list, we've used sorted before for this with 
+        has Big O(nlogn), but we can easily find this by doing it one pass improving the performance to 
+        Big 0(n)
+        """
+
+        if len(stats) == 0:
+            raise ValueError("Empty Dictionary provided as input")
+
+        # The pair will never be [(0, 0), 0]
+        max_pair = ((0, 0), 0)
+        for pair in stats:
+            value = stats.get(pair)
+            current_max_value = max_pair[1]
+            if value > current_max_value:
+                max_pair = (pair, value)
+
+        if max_pair == ((0, 0), 0):
+            raise ValueError("Invalid dictionary provided as input, cannot contains zero")
+
+        return max_pair
+
 
     # -- inference --------------------------------------------------------
     def encode(self, text: str) -> list[int]:
@@ -159,13 +189,9 @@ class BPETokenizer:
         # token list and then call decode with UTF 8 to get the text value
         # [2, 3, 2, 3, 1] => [2, 3] = 2, 1 = 1 => [256, 256, 1]
 
-        encodings = set(self.merges.values())
         decoded_list = []
         for i in range(len(token_ids)):
-            if token_ids[i] in encodings:
-                decoded_list.extend(self.__decode_single(token_id=token_ids[i]))
-            else:
-                decoded_list.append(token_ids[i])
+            decoded_list.extend(self.__decode_single(token_id=token_ids[i]))
         
         byte_array = bytes(decoded_list)
         return byte_array.decode("utf-8")
@@ -178,10 +204,8 @@ class BPETokenizer:
         if (token_id < MIN_VOCAB_SIZE):
             return [token_id]
         
-        encodings = set(self.merges.values())
-        if token_id in encodings:
-            matching_key = next((key for key, val in self.merges.items() if val == token_id), None)
-            (left, right) = matching_key
+        if token_id in self.__byte_lookup_table:
+            (left, right) = self.__byte_lookup_table[token_id]
             left_decode = []
             right_decode = []
             if left >= MIN_VOCAB_SIZE:
@@ -197,7 +221,7 @@ class BPETokenizer:
             result = left_decode + right_decode
             return result
         else:
-            return [token_id]
+            raise RuntimeError("ID above 255 not available in lookup table, there was an error during training")
             
 
 
