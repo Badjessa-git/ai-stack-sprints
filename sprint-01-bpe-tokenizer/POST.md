@@ -6,7 +6,16 @@ Target: 900–1,500 words. Your words first; editing comes after a full draft ex
 ## Prompts (delete as you fill each section)
 
 1. **The problem, in one paragraph.** What a tokenizer does, and the moment
-   you realised a model never actually sees letters or words.
+   I've realized now that I've not manually coded in a while as AI Driven Development has allowed me to move as a much faster pace than I had before. However I still thinking being able to code by hand, understand systems is still a valuable skill for a software engineer and I could feel my skills dulling as AI starts taking a lot of dev work away from you. This prompted me to look for a way to still keep up with my coding skills while keeping up with the industry. I realized that I've been using LLMs for a while now without doing a deep dive into them and I wanted to undestand how it works. That's why I'm workin on this series with the goal of rebuilding the model AI stack on my mac mini. I don't need to built GPT 5 but I aim to end up with a somthing that I can ping and get a response from.
+
+   The rules are simple
+      - Every two weeks (or earlier if i have the time) I will take on a sprint and work on this and publish a post of my experience.
+      - I'm using AI to set up the scaffolding, benchmark and tests for each of the different sprint since I will only be doing this on weekends.
+      - All the code has to be written manually, no auto-complete, no AI. 
+      - I can use the web to look up syntax but I will try to solve all the problems first before looking outwards for a solution.
+   
+   This is the first sprint and today we are building a tokenizer, LLMs don't see letters when you type into a composer, they use tokenizer to compress the text into a language that they can understand and leverage the same tokenizer to talk to us.
+
 
 2. **My mental model before I started.** How did you *think* tokenization
    worked on Friday? Be specific — this section is only honest if you write
@@ -47,9 +56,9 @@ Target: 900–1,500 words. Your words first; editing comes after a full draft ex
 
    257 and 292 were additional encoding since we do multiple passes when creating our merge (the train loop runs vocab_size - 256 times) so when turning this into a string we get an empty string.
 
-   Enters Recursion, the issue here is that we did this in one pass, we need to recursively decode the pairs until we get values that are < 256. Our new algorithm went as follow, for each token id call a private decode function that takes a single token, if the token exists in our values then get the tuple key. Check that each left and right values are below 256. If they're not then recursively call decode again until we get a number that is below 256. Return an array with the token_id and then build the array that way which will from which we can build the initial token_ids list and turn it into a string.
-
    ![Alt Text](/sprint-01-bpe-tokenizer/assets/decode-before.gif)
+
+   Enters Recursion, the issue here is that we did this in one pass, we need to recursively decode the pairs until we get values that are < 256. Our new algorithm went as follow, for each token id call a private decode function that takes a single token, if the token exists in our values then get the tuple key. Check that each left and right values are below 256. If they're not then recursively call decode again until we get a number that is below 256. Return an array with the token_id and then build the array that way which will from which we can build the initial token_ids list and turn it into a string.
 
    With recursion, we can keep breaking down each encoding until we get the value it maps to in the base vocab. We can then decode base on that value and get our original string
 
