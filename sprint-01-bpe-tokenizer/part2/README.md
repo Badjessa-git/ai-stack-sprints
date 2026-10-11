@@ -144,11 +144,10 @@ From the sprint folder (`sprint-01-bpe-tokenizer/`):
 
 ```bash
 # correctness — original suite + equivalence suite
-make test
-python3 -m unittest discover -s part2 -p "test_*.py"
+make test-all
 
 # speed — frozen v1 vs your current implementation, larger corpus
-python3 part2/compare.py
+make compare
 ```
 
 `compare.py` first sanity-checks that both implementations agree, then
