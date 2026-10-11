@@ -1,104 +1,178 @@
-# Post draft — Sprint 01
+---
+title: "Rebuilding the AI Stack by Hand, Part 1: Building a BPE Tokenizer"
+published: false
+description: "For the first sprint in my challenge to rebuild the AI stack by hand, I implemented a byte-pair encoding tokenizer from scratch. This is how it works, where decoding broke, and what the benchmarks showed."
+tags: ai, python, machinelearning, programming
+series: "Rebuilding the AI Stack by Hand"
+---
 
-Working title: "Why LLMs can't count the r's in strawberry — a tokenizer, built by hand"
-Target: 900–1,500 words. Your words first; editing comes after a full draft exists.
+*Part 1 of a series on rebuilding the modern AI stack from first principles. The code and tests for this sprint are in the [ai-stack-sprints repository](https://github.com/Badjessa-git/ai-stack-sprints).*
 
-## Prompts (delete as you fill each section)
+## Why I'm doing this
 
-1. **The problem, in one paragraph.** What a tokenizer does, and the moment
-   I've realized now that I've not manually coded in a while as AI Driven Development has allowed me to move as a much faster pace than I had before. However I still thinking being able to code by hand, understand systems is still a valuable skill for a software engineer and I could feel my skills dulling as AI starts taking a lot of dev work away from you. This prompted me to look for a way to still keep up with my coding skills while keeping up with the industry. I realized that I've been using LLMs for a while now without doing a deep dive into them and I wanted to undestand how it works. That's why I'm workin on this series with the goal of rebuilding the model AI stack on my mac mini. I don't need to built GPT 5 but I aim to end up with a somthing that I can ping and get a response from.
+I realized that I hadn't manually coded in a while. AI-driven development lets me move much faster, but I still believe coding by hand and understanding systems are valuable skills — and I could feel both dulling as AI took over more development work.
 
-   The rules are simple
-      - Every two weeks (or earlier if i have the time) I will take on a sprint and work on this and publish a post of my experience.
-      - I'm using AI to set up the scaffolding, benchmark and tests for each of the different sprint since I will only be doing this on weekends.
-      - All the code has to be written manually, no auto-complete, no AI. 
-      - I can use the web to look up syntax but I will try to solve all the problems first before looking outwards for a solution.
-   
-   This is the first sprint and today we are building a tokenizer, LLMs don't see letters when you type into a composer, they use tokenizer to compress the text into a language that they can understand and leverage the same tokenizer to talk to us.
+I had also been using LLMs for a while without understanding how they work. So I'm rebuilding the modern AI stack on my Mac mini, one piece at a time. I don't need to build GPT-5. My goal is to end up with something I can ping and get a response from.
 
+The rules are simple:
 
-2. **My mental model before I started.** How did you *think* tokenization
-   I didn't think much about Tokenization before I started this, I knew that it was involved with LLMs so that they could understand our input but have never looked too much at it. The closest thing I'd built was in my multiplayer 3d chess game (https://wizardchess3d.vercel.app/), where game-state messages arrived as JSON, were parsed into event types and payloads, and were translated into updated state. It was a different problem, but the shape was similar: convert one representation into another before the system can actually use it.
+- Every two weeks — or earlier if I have time — I'll complete a sprint and publish a post about it.
+- AI sets up the scaffolding, benchmarks, and tests because I'm only doing this on weekends.
+- All implementation code has to be written manually: no autocomplete and no AI-generated code.
+- I can use the web for syntax, but I'll try to solve each problem myself first.
 
+This is the first sprint: a tokenizer.
 
-   I think the naive way I was thinking about it is that it was split by some delimiter so transformation was applied to the split for efficiency purpose and then sent to the models brain.
+LLMs don't see the letters you type into a prompt composer. A tokenizer translates text into token IDs that a model can process, and translates token IDs back into text when the model responds.
 
-3. **The naive build.** Pair counting → merge → repeat. Where did your first
-   version's logic live, and what did the code look like at its simplest?
+## What I thought a tokenizer did
 
-   The first step we built here was the tokenizer. Computers don't actually see the letters that we type into the GPT prompt. The text is converted into tokens that is then shared with the model. The task of the day was completing the build going from text -> tokens -> original text. I started by implementing get_stats and . get_stats enabled us to extract how ofen adjacent pairs occurs in a list of tokens. The next one was implementing merge pair which allowed us to replace a specific pair with a new id. As a result of the two helper function we were able to understand the count of pairs in a text and compress them into new ids (>=256) to represent the text inputed for our model to understand.
+I didn't think much about tokenization before starting this. I knew it helped LLMs process input, but I had never looked at it closely.
 
-   Now we move on to the training loop, our objective here was to build the an in memory encoding of texts so that whenever new text is introduced the token_id list generated remains stable making it easier for models to undertand the text that is sent. The logic is as follow, first transform the text into bytes. Our base vocab is the 256 possible byes from regular text encoding, we want any additional encoding to have id 256 and up. We first checked that the vocab size was larger than 255 to make sure that we can encoe more complex text without disrupting ACII mapping. We iteratively get the overlapping pairs in the text, we pick the most frequent pair record it in our in memory map as (left, right) -> new_id (256+iteration count starting from 0) and then merge the pair back into the original token list. We did it vocab_size - 256 times to stay in the input bounds (Note: why does vocab size matter?). At the end of the training model, we have a list of pairs in memory that represents the text. In both encoding and decoding we leverage the in memory map that has been built to turn new text in tokens and the reverse back into the original strings. 
+The closest thing I had built was in my [multiplayer 3D chess game](https://wizardchess3d.vercel.app/), where game-state messages arrived as JSON, were parsed into event types and payloads, and were translated into updated state. Different problem, similar shape: convert one representation into another before the system can use it.
 
-4. **Where it broke.** Paste a real failure: a failing test, a wrong merge
-   order, a roundtrip that mangled an emoji. What was the actual bug?
+My naive model was that tokenization split text by a delimiter, transformed the pieces for efficiency, and sent them to the model's brain.
 
-   The piece that was the most challenging in implementing this tokenizer is the decode function. Encoding was pretty straight forward, use and iterator to find the lowest rank (earliest insertion which python3 ensures on dict), call merge_pair for that pair and repeat the process for the all of the in-memory pairs. 
-   
-   The reverse was a lot more challenging. My first attempt was to do this iteratively, for each token in the input check if it exists in the in-memory map, find the tuple key and replace it with the left and right pair in the token list, turn them into a bytearray and call decode to get the original string. The thing I failed to notice is that the pair could also be the result of an earlier pair encoding. Here's a visual to make it easy to understand
+Instead, this implementation never starts with a delimiter. It starts with raw bytes and learns which adjacent sequences occur often enough to become units of their own.
 
-   Lets look at an example to make it easy, lets assume this setup
-   ```python
-   tok = BPETokenizer()
-   tok.train("the quick brown fox jumps over the lazy dog. " * 30, vocab_size=320)
-   encoding = tok.encode("the quick brown fox jumps over the lazy dog")
-   print("encoding", encoding)
-   ```
+## Building v1: count pairs, merge, repeat
 
-   ```bash
-   Merges: {(116, 104): 256, (256, 101): 257, (257, 32): 258, (32, 258): 259, (113, 117): 260, (260, 105): 261, (261, 99): 262, (262, 107): 263, (263, 32): 264, (264, 98): 265, (265, 114): 266, (266, 111): 267, (267, 119): 268, (268, 110): 269, (269, 32): 270, (270, 102): 271, (271, 111): 272, (272, 120): 273, (273, 32): 274, (274, 106): 275, (275, 117): 276, (276, 109): 277, (277, 112): 278, (278, 115): 279, (279, 32): 280, (280, 111): 281, (281, 118): 282, (282, 101): 283, (283, 114): 284, (284, 259): 285, (285, 108): 286, (286, 97): 287, (287, 122): 288, (288, 121): 289, (289, 32): 290, (290, 100): 291, (291, 111): 292, (292, 103): 293, (293, 46): 294, (294, 259): 295, (295, 295): 296, (296, 296): 297, (297, 297): 298, (298, 298): 299}
+The goal was to complete the round trip:
 
-   Encoding: [258, 293]
-   ```
+```text
+text -> tokens -> original text
+```
 
-   The issue with the approach described is that our output returned would be
-   ```bash
-   [257, 32, 292, 103]
-   ```
+I started with two helper functions:
 
-   257 and 292 were additional encoding since we do multiple passes when creating our merge (the train loop runs vocab_size - 256 times) so when turning this into a string we get an empty string.
+- `get_stats` counts each adjacent pair in a list of token IDs. The pairs overlap: in `[1, 2, 1]`, both `(1, 2)` and `(2, 1)` count.
+- `merge_pair` returns a new list with every non-overlapping occurrence of a chosen pair replaced by a new token ID.
 
-   ![Alt Text](/sprint-01-bpe-tokenizer/assets/decode-before.gif)
+Together, they answer BPE's two central questions: *Which pair occurs most often?* and *What happens when we merge it everywhere?*
 
-   Enters Recursion, the issue here is that we did this in one pass, we need to recursively decode the pairs until we get values that are < 256. Our new algorithm went as follow, for each token id call a private decode function that takes a single token, if the token exists in our values then get the tuple key. Check that each left and right values are below 256. If they're not then recursively call decode again until we get a number that is below 256. Return an array with the token_id and then build the array that way which will from which we can build the initial token_ids list and turn it into a string.
+### Training
 
-   With recursion, we can keep breaking down each encoding until we get the value it maps to in the base vocab. We can then decode base on that value and get our original string
+Training begins by encoding the text as UTF-8 bytes. The base vocabulary contains all 256 possible byte values, IDs 0 through 255. ASCII is included, but not the limit: characters outside ASCII become sequences of UTF-8 bytes.
 
-   ```bash
-   [116, 104, 101, 32, 113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97, 122, 121, 32, 100, 111, 103]
-   ```
+The requested vocabulary must be at least 256. Each learned merge receives the next available ID, starting at 256.
 
-   ![Alt Text](/sprint-01-bpe-tokenizer/assets/decode-tree.gif)
+The loop is:
 
-5. **The numbers.** Quote `make benchmark`: tokens vs bytes at each vocab
-   size. What surprised you about the compression curve?
-   
-   I also ran some benchmarks with various vocab sizes on the same corpus
-   Note: The corpus is quite small so this doesn't tell us if this approach will work well at scale, I'm mostly curious here about token the size in relation to vocab increase.
+1. Count the adjacent pairs in the current token list.
+2. Pick the most frequent pair.
+3. Record it in `self.merges` as `(left, right) -> new_id`.
+4. Replace that pair throughout the token list.
+5. Repeat until reaching the target vocabulary or running out of pairs frequent enough to merge.
 
-   corpus: 4,644 chars / 4,646 bytes
-   vocab= 256  merges=  0  tokens= 4,646  ratio=100.00%  bytes/token=1.00  train=0.00s  encode=0.000s
-   vocab= 384  merges=128  tokens= 2,346  ratio=50.50%  bytes/token=1.98  train=0.10s  encode=0.041s
-   ocab= 512  merges=256  tokens= 1,882  ratio=40.51%  bytes/token=2.47  train=0.18s  encode=0.070s
+Vocabulary size is the merge budget: 256 permits no learned merges; 512 permits up to 256.
 
-   At 256 no merges occurs and the number of tokens is the same as the input size which is expected. This is the possible bytes from regular text encoding so no training truly occurs there. 
+At the end, `self.merges` is the learned rulebook. Encoding applies it to new text; decoding expands token IDs back into bytes and decodes them as UTF-8.
 
-   We observe that the number of merges increases as the vocab sizes increases but the the number of tokens generated decreases. At size 512 we see a 59.5% reduction in the number of bytes returned, a valuable learnings here is that vocab increase reduces number of tokens which means shorter sequences and less processing per request but it is at a cost of time spent on training and number of iteration. At a truly large value, we would see the number of tokens be lower but the time to train would take a lot longer because of the iteration process.
+## Where it broke: decoding is not a one-pass operation
 
-   Another interesting observation is the number of tokens cut down as vocab size increases decreases 256 -> 384 => 2300 and 384 -> 512 => 464. This is because the most frequent pairs are eaten up first and merge_pairs go after rarer pairs, we observer diminishing returns as we increase the sizes so finding the right tradeoffs based on your training set is important to avoid wasting compute
+Decoding was the most challenging part of the tokenizer.
 
-6. **Why this data structure.** Merge rank as dict insertion order; re-counting
-   pairs from scratch every round vs incremental updates — cost vs simplicity.
-   What do production tokenizers do instead, and why can they get away with it?
-      I used a dicitionary for this here because it afforded me 2 benefits; fast lookups and Merge Priority. Merge priority is important during encoding bcause since insertion order is preserved we can do the encoding in one pass merging the higher priority to the lower ones. A tradeoff however is that it makes decoding much more complex, we could have maintained a seconditonary that kept track of the reverse relationships but that introduces memory increase and maintainance complexity that I feel is out of scope for a first pass at this.
+Encoding was comparatively straightforward: iterate through the merges in learned order and call `merge_pair` for each rule — one pass through the token sequence per rule.
 
-      our training function trades efficiency for simplicity, as a learning exercise I didn't want to build a production ready system here but its still good to talk through the inefficienies and tradeofs. Training takes roughly MxN plus sorting costs since we are doing full scans on every iterations. An optimization would be to update only those neighboring count but this is out of scope for the simplified version. This is also an inefficiency we see in the encoder because it repeatedly scans the whole token sequence for every learned merge
+My first decoding attempt was also iterative. For each input token that was the result of a merge, I replaced it once with the two IDs that created it. After one pass, I expected to have bytes that could be converted back into a string.
 
-      A larger vocabulary shortens sequences, but with diminishing compression gains, while steadily increasing training work, embedding/output-layer size, and the number of rare tokens the model must learn
+Here's the example that exposed the problem:
 
-## Before publishing checklist
+```python
+tok = BPETokenizer()
+tok.train(
+    "the quick brown fox jumps over the lazy dog. " * 30,
+    vocab_size=320,
+)
+encoding = tok.encode("the quick brown fox jumps over the lazy dog")
+print(encoding)
+```
 
-- [ ] Every number in the post came from a benchmark run I can reproduce
-- [ ] One code snippet maximum per section, and I can explain each line
-- [ ] No sentence I couldn't defend out loud to another engineer
-- [ ] I read it out loud once (writing in general improves out loud)
+Training stopped after 44 merges — IDs 256 through 299 — because no remaining pair met the minimum frequency. A few of those merges were:
+
+```python
+{
+    (116, 104): 256,  # "th"
+    (256, 101): 257,  # "the"
+    (257, 32): 258,   # "the "
+    # ... more merges ...
+    (291, 111): 292,
+    (292, 103): 293,
+}
+```
+
+The entire sentence encoded to only two tokens:
+
+```python
+[258, 293]
+```
+
+But expanding each of those tokens once produced:
+
+```python
+[257, 32, 292, 103]
+```
+
+That was not a list of bytes. Token 257 still represented `"the"`, and token 292 represented almost the entire remainder of the sentence. Because 257 and 292 are greater than 255, they could not be placed in a `bytes` object at all. I was left holding a partially expanded sequence.
+
+![One-pass decoding expands each token once and gets stuck](assets/decode-before.gif)
+
+### Recursion was the missing idea
+
+A merged token can contain another merged token. Expanding it once therefore doesn't finish the job; it merely reveals the next layer.
+
+The fix was to treat every merged token as a small tree. The private `__decode_single` function returns an ID below 256 as a byte; otherwise, it finds the pair that created the ID and recursively expands both children until every leaf is a byte.
+
+Then `decode` concatenates the bytes from every input token and decodes them as UTF-8. For the sentence above, recursion eventually produces the original 43 bytes.
+
+![Recursive decoding expands a merged token into a tree of bytes](assets/decode-tree.gif)
+
+The lesson from the bug was precise: **a token is not decoded merely because it has been replaced once. It is decoded when every value underneath it has reached a byte.**
+
+## The numbers
+
+I benchmarked three vocabulary sizes on the same small corpus. At only 4,646 bytes, the results reveal the shape of the trade-off better than they predict production performance.
+
+```text
+corpus: 4,644 chars / 4,646 bytes
+vocab= 256  merges=  0  tokens= 4,646  ratio=100.00%  bytes/token=1.00  train=0.00s  encode=0.000s
+vocab= 384  merges=128  tokens= 2,346  ratio=50.50%  bytes/token=1.98  train=0.10s  encode=0.041s
+vocab= 512  merges=256  tokens= 1,882  ratio=40.51%  bytes/token=2.47  train=0.18s  encode=0.070s
+```
+
+At vocabulary 256, there are no learned merges, so every byte remains its own token: 4,646 tokens.
+
+At vocabulary 512, the same text takes 1,882 tokens — **59.5% fewer tokens than the byte-level baseline**. Shorter sequences mean less input for a model to process per request.
+
+The diminishing returns were just as interesting:
+
+- The first 128 merges reduced the token count by 2,300.
+- The next 128 merges reduced it by only 464.
+
+BPE is greedy: frequent pairs are merged first, so later merges chase rarer patterns. Vocabulary size is a trade-off, not a case of “bigger is always better.”
+
+## Why a dictionary — and why this version is slow
+
+I used dictionaries in two central places.
+
+`get_stats` uses an adjacent pair as a dictionary key so it can count occurrences as it scans the sequence. `self.merges` uses that same pair as a key and maps it to the new token ID.
+
+The merges dictionary provides a second, less obvious benefit: Python dictionaries preserve insertion order. Because merges are inserted in the order they are learned, insertion order is also their rank. During encoding, the dictionary is both the rulebook and the priority list.
+
+The trade-off appears in decoding. `self.merges` points forward, from a pair to a token ID. Decoding needs the reverse direction. My implementation searches for the pair when it needs it. I could build a reverse dictionary or precomputed token-to-bytes table, making lookups faster at the cost of extra memory and a duplicate representation. For a first pass, I left it out.
+
+Training makes a similar trade. Each round, my code recounts every pair from scratch and sorts the counts to find the winner. If **M** is the number of merges and **N** is the current sequence length, repeated full scans cost roughly **M × N**, plus sorting.
+
+That is more than necessary. When a pair is merged, only pairs immediately around each merge site change; counts elsewhere remain valid. An optimized implementation could update only those neighbors, but it would need considerably more bookkeeping to track changing counts and winners correctly.
+
+The encoder makes the same simplicity trade: it scans the whole token sequence once for every learned merge rule.
+
+Finally, a larger vocabulary shortens sequences, but with diminishing compression gains, while steadily increasing training work, the size of the model's embedding and output layers, and the number of rare tokens it must learn.
+
+Those trade-offs are acceptable for a 4,646-byte learning corpus and a few hundred merges. They would not be acceptable unchanged at production scale.
+
+## Next: Part 2
+
+This version is correct, but deliberately naive.
+
+In Part 2, I'll optimize it: avoid sorting every pair count merely to find the maximum, precompute the lookups decoding needs, and rerun the same tests and benchmark to see what actually improves. I'll also revisit the production-scale trade-offs — and what I misunderstood when I started — with the complete v1-to-v2 comparison in hand.
