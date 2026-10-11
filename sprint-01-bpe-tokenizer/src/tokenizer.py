@@ -163,14 +163,14 @@ class BPETokenizer:
         decoded_list = []
         for i in range(len(token_ids)):
             if token_ids[i] in encodings:
-                decoded_list.extend(self.decode_single(token_id=token_ids[i]))
+                decoded_list.extend(self.__decode_single(token_id=token_ids[i]))
             else:
                 decoded_list.append(token_ids[i])
         
         byte_array = bytes(decoded_list)
         return byte_array.decode("utf-8")
 
-    def decode_single(self, token_id: int) -> list[int]:
+    def __decode_single(self, token_id: int) -> list[int]:
         """
         Recursively decode the token ids and return a list to the top level function
         which builds the string to be returned
@@ -185,12 +185,12 @@ class BPETokenizer:
             left_decode = []
             right_decode = []
             if left >= MIN_VOCAB_SIZE:
-                left_decode.extend(self.decode_single(left))
+                left_decode.extend(self.__decode_single(left))
             else:
                 left_decode = [left]
             
             if right >= MIN_VOCAB_SIZE:
-                right_decode.extend(self.decode_single(right))
+                right_decode.extend(self.__decode_single(right))
             else:
                 right_decode = [right]
 
