@@ -92,14 +92,9 @@ Target: 900–1,500 words. Your words first; editing comes after a full draft ex
    What do production tokenizers do instead, and why can they get away with it?
       I used a dicitionary for this here because it afforded me 2 benefits; fast lookups and Merge Priority. Merge priority is important during encoding bcause since insertion order is preserved we can do the encoding in one pass merging the higher priority to the lower ones. A tradeoff however is that it makes decoding much more complex, we could have maintained a seconditonary that kept track of the reverse relationships but that introduces memory increase and maintainance complexity that I feel is out of scope for a first pass at this.
 
-      our training function trades efficiency for simplicity, as a learning exercise I didn't want to build a production ready system here but its still good to talk through the inefficienies and tradeofs. Training takes roughly MxN plus sorting costs since we are doing full scans on every iterations. An optimization would be to update only those neighboring count (BFS) but this is out of scope for the simplified version. This is also an inefficiency we see in the encoder.
+      our training function trades efficiency for simplicity, as a learning exercise I didn't want to build a production ready system here but its still good to talk through the inefficienies and tradeofs. Training takes roughly MxN plus sorting costs since we are doing full scans on every iterations. An optimization would be to update only those neighboring count but this is out of scope for the simplified version. This is also an inefficiency we see in the encoder because it repeatedly scans the whole token sequence for every learned merge
 
-      
-
-
-
-7. **What I misunderstood on Friday vs Sunday.** One concrete thing, not a
-   platitude. If you can't name one, you stopped too early.
+      A larger vocabulary shortens sequences, but with diminishing compression gains, while steadily increasing training work, embedding/output-layer size, and the number of rare tokens the model must learn
 
 ## Before publishing checklist
 
