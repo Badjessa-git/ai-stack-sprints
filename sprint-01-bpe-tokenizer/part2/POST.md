@@ -48,8 +48,10 @@ so — that's the most useful part.
 
 ## 7. What production tokenizers do differently
 
-<!-- Discuss this with Cleo during the code review BEFORE writing it —
-same rule as Part 1: no explaining trade-offs we haven't covered. -->
+<!-- Covered in our review session first — see the discussion checklist
+in part2/README.md (Rust cores in tiktoken / HF tokenizers, regex
+pretokenization, where tokenization sits in inference latency). Write
+this only after we've gone through it. -->
 
 ## 8. What I misunderstood (the deferred Part 1 reflection)
 
@@ -62,3 +64,16 @@ difference between making something correct and making it fast.
 
 Tease Sprint 2: a scalar autograd engine — teaching the computer to take
 derivatives by hand.
+
+## 10. Resources
+
+Keep a short list at the end of the published post (reader feedback on
+Part 1 asked for this):
+
+- Sennrich, Haddow & Birch, *Neural Machine Translation of Rare Words
+  with Subword Units* (2016): https://arxiv.org/abs/1508.07909
+- Andrej Karpathy, *Let's build the GPT Tokenizer*:
+  https://www.youtube.com/watch?v=zduSFxRajkE (code:
+  https://github.com/karpathy/minbpe)
+- Hugging Face, *Summary of the tokenizers*:
+  https://huggingface.co/docs/transformers/v4.47.1/tokenizer_summary
