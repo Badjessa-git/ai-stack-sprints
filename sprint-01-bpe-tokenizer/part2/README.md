@@ -148,6 +148,9 @@ make test-all
 
 # speed — frozen v1 vs your current implementation, larger corpus
 make compare
+
+# where the time goes — cProfile breakdown by function
+make profile
 ```
 
 `compare.py` first sanity-checks that both implementations agree, then
