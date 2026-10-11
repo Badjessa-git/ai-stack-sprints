@@ -22,6 +22,81 @@ Target: 900–1,500 words. Your words first; editing comes after a full draft ex
 4. **Where it broke.** Paste a real failure: a failing test, a wrong merge
    order, a roundtrip that mangled an emoji. What was the actual bug?
 
+   The piece that was the most challenging in implementing this tokenizer is the decode function. Encoding was pretty straight forward, use and iterator to find the lowest rank (earliest insertion which python3 ensures on dict), call merge_pair for that pair and repeat the process for the all of the in-memory pairs. 
+   
+   The reverse was a lot more challenging. My first attempt was to do this iteratively, for each token in the input check if it exists in the in-memory map, find the tuple key and replace it with the left and right pair in the token list, turn them into a bytearray and call decode to get the original string. The thing I failed to notice is that the pair could also be the result of an earlier pair encoding. Here's a visual to make it easy to understand
+
+   Lets look at an example to make it easy, lets assume this setup
+   ```python
+   tok = BPETokenizer()
+   tok.train("the quick brown fox jumps over the lazy dog. " * 30, vocab_size=320)
+   encoding = tok.encode("the quick brown fox jumps over the lazy dog")
+   print("encoding", encoding)
+   ```
+
+   ```bash
+   Merges: {(116, 104): 256, (256, 101): 257, (257, 32): 258, (32, 258): 259, (113, 117): 260, (260, 105): 261, (261, 99): 262, (262, 107): 263, (263, 32): 264, (264, 98): 265, (265, 114): 266, (266, 111): 267, (267, 119): 268, (268, 110): 269, (269, 32): 270, (270, 102): 271, (271, 111): 272, (272, 120): 273, (273, 32): 274, (274, 106): 275, (275, 117): 276, (276, 109): 277, (277, 112): 278, (278, 115): 279, (279, 32): 280, (280, 111): 281, (281, 118): 282, (282, 101): 283, (283, 114): 284, (284, 259): 285, (285, 108): 286, (286, 97): 287, (287, 122): 288, (288, 121): 289, (289, 32): 290, (290, 100): 291, (291, 111): 292, (292, 103): 293, (293, 46): 294, (294, 259): 295, (295, 295): 296, (296, 296): 297, (297, 297): 298, (298, 298): 299}
+
+   Encoding: [258, 293]
+   ```
+
+   The issue with the approach described is that our output returned would be
+   ```bash
+   [257, 32, 292, 103]
+   ```
+
+   257 and 292 were additional encoding since we do multiple passes when creating our merge (the train loop runs vocab_size - 256 times) so when turning this into a string we get an empty string.
+
+   Enters Recursion, the issue here is that we did this in one pass, we need to recursively decode the pairs until we get values that are < 256. Our new algorithm went as follow, for each token id call a private decode function that takes a single token, if the token exists in our values then get the tuple key. Check that each left and right values are below 256. If they're not then recursively call decode again until we get a number that is below 256. Return an array with the token_id and then build the array that way which will from which we can build the initial token_ids list and turn it into a string.
+
+   ```bash
+turn 2 - side left [116, 104]
+turn 1 - side left [116, 104, 101]
+turn 0 - side neutral [116, 104, 101, 32]
+turn 33 - side left [113, 117]
+turn 32 - side left [113, 117, 105]
+turn 31 - side left [113, 117, 105, 99]
+turn 30 - side left [113, 117, 105, 99, 107]
+turn 29 - side left [113, 117, 105, 99, 107, 32]
+turn 28 - side left [113, 117, 105, 99, 107, 32, 98]
+turn 27 - side left [113, 117, 105, 99, 107, 32, 98, 114]
+turn 26 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111]
+turn 25 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119]
+turn 24 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110]
+turn 23 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32]
+turn 22 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102]
+turn 21 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111]
+turn 20 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120]
+turn 19 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32]
+turn 18 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106]
+turn 17 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117]
+turn 16 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109]
+turn 15 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112]
+turn 14 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115]
+turn 13 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32]
+turn 12 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111]
+turn 11 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118]
+turn 10 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101]
+turn 9 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114]
+turn 12 - side left [116, 104]
+turn 11 - side left [116, 104, 101]
+turn 10 - side right [116, 104, 101, 32]
+turn 9 - side right [32, 116, 104, 101, 32]
+turn 8 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32]
+turn 7 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108]
+turn 6 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97]
+turn 5 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97, 122]
+turn 4 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97, 122, 121]
+turn 3 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97, 122, 121, 32]
+turn 2 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97, 122, 121, 32, 100]
+turn 1 - side left [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97, 122, 121, 32, 100, 111]
+turn 0 - side neutral [113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97, 122, 121, 32, 100, 111, 103]
+final list [116, 104, 101, 32, 113, 117, 105, 99, 107, 32, 98, 114, 111, 119, 110, 32, 102, 111, 120, 32, 106, 117, 109, 112, 115, 32, 111, 118, 101, 114, 32, 116, 104, 101, 32, 108, 97, 122, 121, 32, 100, 111, 103]
+   ```
+
+   With recursion, we can keep breaking down each encoding until we get the value it maps to in the base vocab. We can then decode base on that value and get our original string
+
+
 5. **The numbers.** Quote `make benchmark`: tokens vs bytes at each vocab
    size. What surprised you about the compression curve?
    
