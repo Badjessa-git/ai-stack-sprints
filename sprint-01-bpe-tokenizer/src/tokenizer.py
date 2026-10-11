@@ -15,6 +15,7 @@ Standard library only.
 
 from __future__ import annotations
 
+MIN_VOCAB_SIZE = 256 # max size for base vocabulary
 
 def get_stats(token_ids: list[int]) -> dict[tuple[int, int], int]:
     """Count how often each adjacent pair occurs.
@@ -23,7 +24,20 @@ def get_stats(token_ids: list[int]) -> dict[tuple[int, int], int]:
 
     Hint: one pass, one dict. Overlapping pairs both count.
     """
-    raise NotImplementedError("Your turn: get_stats")
+
+    # Initial approach, two pointers at i and i+1
+    # if pair (i, i+1) exist in the dictionay, increase the count
+    # if first time then set it to 1 in the hashmap
+
+    result = {}
+    for i in range(len(token_ids) -1):
+        pair = (token_ids[i], token_ids[i+1])
+        if pair in result:
+            result[pair] = result[pair] + 1
+        else:
+            result[pair] = 1
+
+    return result
 
 
 def merge_pair(
@@ -37,8 +51,22 @@ def merge_pair(
     Careful: after merging, the scan continues AFTER the new token —
     the new token does not start a new pair within this pass.
     """
-    raise NotImplementedError("Your turn: merge_pair")
+    result = []
+    size = len(token_ids)
+    i = 0
+    while i <= (size - 1):
+        if i == size - 1:
+            result.append(token_ids[i])
+            return result
 
+        current_pair = (token_ids[i], token_ids[i+1])
+        if current_pair == pair:
+            result.append(new_id)
+            i += 2 # non-overlapping pair so we want to skip 
+        else:
+            result.append(token_ids[i])
+            i += 1
+    return result
 
 class BPETokenizer:
     """Byte-level BPE tokenizer (simplified GPT-2 style).
@@ -71,10 +99,25 @@ class BPETokenizer:
         instead of updating counts incrementally? What does that cost?
         (That trade-off belongs in your post.)
         """
-        raise NotImplementedError("Your turn: train")
+
+        if vocab_size < MIN_VOCAB_SIZE:
+            raise ValueError("Vocab size bigger than alloted value")
+        
+        i = 0
+        id = 256
+        token_ids = list(text.encode("utf-8"))
+        while i < vocab_size - MIN_VOCAB_SIZE:
+            pairs = dict(sorted(get_stats(token_ids=token_ids).items(), key=lambda item:item[1], reverse=True))
+            (left, right), value = next(iter(pairs.items()))
+            if value < min_frequency:
+                break
+
+            self.merges[(left, right)] = id
+            token_ids = merge_pair(token_ids=token_ids, pair=(left, right), new_id=id)
+            i += 1 # increase pointer
+            id += 1 # new ids
 
     # -- inference --------------------------------------------------------
-
     def encode(self, text: str) -> list[int]:
         """Encode `text` to token ids using the learned merges.
 
@@ -87,8 +130,14 @@ class BPETokenizer:
         order — also works and is easier to reason about first. Get it
         correct, benchmark, then optimise if time remains.
         """
-        raise NotImplementedError("Your turn: encode")
-
+        token_ids = list(text.encode("utf-8"))
+        size = len(self.merges)
+        iterator = iter(self.merges.items())
+        for i in range(size):
+            (left, right), new_id = next(iterator)
+            token_ids = merge_pair(token_ids=token_ids, pair=(left, right), new_id=new_id)
+        return token_ids
+            
     def decode(self, token_ids: list[int]) -> str:
         """Decode token ids back to text. Must be the exact inverse of
         encode(): decode(encode(s)) == s for any string s.
@@ -101,4 +150,52 @@ class BPETokenizer:
         errors="replace" is NOT acceptable here — roundtrip must be exact
         for valid token sequences produced by encode().
         """
-        raise NotImplementedError("Your turn: decode")
+
+        # so we need to replace each encoding with its pair in the text, until we get the original 
+        # token list and then call decode with UTF 8 to get the text value
+        # [2, 3, 2, 3, 1] => [2, 3] = 2, 1 = 1 => [256, 256, 1]
+
+        encodings = set(self.merges.values())
+        decoded_list = []
+        for i in range(len(token_ids)):
+            if token_ids[i] in encodings:
+                decoded_list.extend(self.decode_single(token_id=token_ids[i]))
+            else:
+                decoded_list.append(token_ids[i])
+        
+        byte_array = bytes(decoded_list)
+        return byte_array.decode("utf-8")
+
+    def decode_single(self, token_id: int) -> list[int]:
+        """
+        Recursively decode the token ids and return a list to the top level function
+        which builds the string to be returned
+        """
+        if (token_id < MIN_VOCAB_SIZE):
+            print("early", [token_id])
+            return [token_id]
+        
+        encodings = set(self.merges.values())
+        if token_id in encodings:
+            matching_key = next((key for key, val in self.merges.items() if val == token_id), None)
+            (left, right) = matching_key
+            left_decode = []
+            right_decode = []
+            if left >= MIN_VOCAB_SIZE:
+                left_decode.extend(self.decode_single(left))
+            else:
+                left_decode = [left]
+            
+            if right >= MIN_VOCAB_SIZE:
+                right_decode.extend(self.decode_single(right))
+            else:
+                right_decode = [right]
+
+            result = left_decode + right_decode
+            return result
+        else:
+            return [token_id]
+            
+
+
+
