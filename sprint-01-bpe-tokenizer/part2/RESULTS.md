@@ -1,0 +1,21 @@
+# Part 2 — Results
+
+Machine: Mac mini (fill in chip/RAM)
+Date:
+Command: `python3 part2/compare.py` from `sprint-01-bpe-tokenizer/`
+Timing corpus: sprint corpus ×30 (~140 KB), best of repeated runs
+
+| Operation | v1 (frozen) | v2 (optimized) | Speedup |
+|---|---|---|---|
+| Train (vocab 384, ~140 KB) | | | |
+| Encode (vocab 512, ~140 KB) | | | |
+| Decode (30,000 tokens) | | | |
+
+## Notes
+
+- What I changed, in order:
+  1.
+  2.
+  3. (stretch, if attempted)
+- Which change actually mattered most — and was it the one I expected?
+- Anything that got *slower* or surprised me:
