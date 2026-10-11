@@ -107,7 +107,11 @@ class BPETokenizer:
         id = 256
         token_ids = list(text.encode("utf-8"))
         while i < vocab_size - MIN_VOCAB_SIZE:
-            pairs = dict(sorted(get_stats(token_ids=token_ids).items(), key=lambda item:item[1], reverse=True))
+            stats = get_stats(token_ids=token_ids)
+            if not stats:
+                break;
+            
+            pairs = dict(sorted(stats.items(), key=lambda item:item[1], reverse=True))
             (left, right), value = next(iter(pairs.items()))
             if value < min_frequency:
                 break
@@ -172,7 +176,6 @@ class BPETokenizer:
         which builds the string to be returned
         """
         if (token_id < MIN_VOCAB_SIZE):
-            print("early", [token_id])
             return [token_id]
         
         encodings = set(self.merges.values())
