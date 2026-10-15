@@ -76,8 +76,8 @@ def main() -> None:
     profile("ENCODE — v1 (frozen)", lambda: encode(tok=tok))
     profile("ENCODE — current", lambda: encode(tok=tok_v2))
 
-    ids = tok.encode(BIG_TEXT)[:DECODE_TOKENS]
-    ids_v2 = tok_v2.encode(BIG_TEXT)[:DECODE_TOKENS]
+    ids = tok.encode(BIG_TEXT)
+    ids_v2 = tok_v2.encode(BIG_TEXT)
     profile("DECODE — v1 (frozen)", lambda: decode(tok, ids))
     profile("DECODE — current", lambda: decode(tok_v2, ids_v2))
 
