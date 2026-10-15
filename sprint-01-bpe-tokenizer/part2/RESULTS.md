@@ -7,9 +7,10 @@ Timing corpus: sprint corpus ×30 (~140 KB), best of repeated runs
 
 | Operation | v1 (frozen) | v2 (optimized) | Speedup |
 |---|---|---|---|
-| Train (vocab 384, ~140 KB) | | | |
-| Encode (vocab 512, ~140 KB) | | | |
-| Decode (30,000 tokens) | | | |
+| Train (vocab 384, ~140 KB) |2.495s| 2.478s | 1.01× |
+| Encode (vocab 512, ~140 KB) | 2.130s	| 2.162s	| 0.99×|
+| Decode (30,000 tokens) |0.126s	 |0.010s	 |12.6×
+ |
 
 ## Notes
 
