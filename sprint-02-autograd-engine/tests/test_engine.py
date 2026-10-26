@@ -50,6 +50,154 @@ class TestForward(unittest.TestCase):
         self.assertTrue(close(Value(1.0).tanh().data, math.tanh(1.0)))
 
 
+class TestBackwardClosures(unittest.TestCase):
+    """Per-op _backward closures, tested in isolation — no backward() needed.
+
+    Forward tests only check .data, so they pass even when an op leaves the
+    default do-nothing lambda from __init__ in place. These tests close that
+    gap: they set the output's grad by hand (2.0, not 1.0, so a closure that
+    ignores the incoming grad is caught), call the output's _backward()
+    directly, and check that the inputs' grads moved by the right amount.
+
+    They do NOT test topo order, zeroing, or accumulation across a graph —
+    that is still TestBackward's job, below. A passing forward step plus a
+    passing closure step means an op is actually backward-ready.
+    """
+
+    def test_add_closure(self):
+        a = Value(2.0)
+        b = Value(3.0)
+        c = a + b
+        self.assertIsNot(c, a)
+        self.assertIsNot(c, b)
+        c.grad = 2.0
+        c._backward()
+        self.assertTrue(close(a.grad, 2.0))
+        self.assertTrue(close(b.grad, 2.0))
+
+    def test_add_scalar_closure(self):
+        a = Value(2.0)
+        c = a + 3
+        self.assertIsNot(c, a)
+        c.grad = 2.0
+        c._backward()
+        self.assertTrue(close(a.grad, 2.0))
+
+    def test_radd_closure(self):
+        a = Value(2.0)
+        c = 3 + a
+        self.assertIsNot(c, a)
+        c.grad = 2.0
+        c._backward()
+        self.assertTrue(close(a.grad, 2.0))
+
+    def test_mul_closure(self):
+        a = Value(2.0)
+        b = Value(3.0)
+        c = a * b
+        self.assertIsNot(c, a)
+        self.assertIsNot(c, b)
+        c.grad = 2.0
+        c._backward()
+        # a gets other * incoming, b gets other * incoming
+        self.assertTrue(close(a.grad, 6.0))
+        self.assertTrue(close(b.grad, 4.0))
+
+    def test_rmul_closure(self):
+        a = Value(2.0)
+        c = 3 * a
+        self.assertIsNot(c, a)
+        c.grad = 2.0
+        c._backward()
+        self.assertTrue(close(a.grad, 6.0))
+
+    def test_pow_closure(self):
+        x = Value(3.0)
+        y = x**2
+        self.assertIsNot(y, x)
+        y.grad = 2.0
+        y._backward()
+        # derivative 2 * x, times incoming 2.0
+        self.assertTrue(close(x.grad, 12.0))
+
+    def test_neg_closure(self):
+        a = Value(2.0)
+        b = -a
+        self.assertIsNot(b, a)
+        b.grad = 2.0
+        b._backward()
+        self.assertTrue(close(a.grad, -2.0))
+
+    def test_sub_closure(self):
+        a = Value(5.0)
+        b = Value(3.0)
+        c = a - b
+        self.assertIsNot(c, a)
+        self.assertIsNot(c, b)
+        c.grad = 2.0
+        c._backward()
+        self.assertTrue(close(a.grad, 2.0))
+        self.assertTrue(close(b.grad, -2.0))
+
+    def test_rsub_closure(self):
+        a = Value(3.0)
+        c = 5 - a
+        self.assertIsNot(c, a)
+        c.grad = 2.0
+        c._backward()
+        # c = 5 - a, so a's share is -incoming
+        self.assertTrue(close(a.grad, -2.0))
+
+    def test_div_closure(self):
+        a = Value(6.0)
+        b = Value(2.0)
+        c = a / b
+        self.assertIsNot(c, a)
+        self.assertIsNot(c, b)
+        c.grad = 2.0
+        c._backward()
+        # a gets (1/b) * incoming, b gets (-a/b**2) * incoming
+        self.assertTrue(close(a.grad, 1.0))
+        self.assertTrue(close(b.grad, -3.0))
+
+    def test_relu_closure_on(self):
+        x = Value(3.0)
+        y = x.relu()
+        self.assertIsNot(y, x)
+        y.grad = 2.0
+        y._backward()
+        self.assertTrue(close(x.grad, 2.0))
+
+    def test_relu_closure_off(self):
+        x = Value(-2.0)
+        y = x.relu()
+        self.assertIsNot(y, x)
+        y.grad = 2.0
+        y._backward()
+        self.assertTrue(close(x.grad, 0.0))
+
+    def test_tanh_closure(self):
+        x = Value(1.0)
+        y = x.tanh()
+        self.assertIsNot(y, x)
+        y.grad = 2.0
+        y._backward()
+        expected = (1.0 - math.tanh(1.0) ** 2) * 2.0
+        self.assertTrue(close(x.grad, expected))
+
+    def test_closure_accumulates(self):
+        # Calling _backward twice must ADD, not overwrite — the += rule,
+        # checked here for one op before any full-graph backward() runs.
+        a = Value(2.0)
+        b = Value(3.0)
+        c = a + b
+        c.grad = 1.0
+        c._backward()
+        c._backward()
+        self.assertTrue(close(a.grad, 2.0))
+        self.assertTrue(close(b.grad, 2.0))
+
+
 class TestBackward(unittest.TestCase):
     def test_backward_simple(self):
         a = Value(2.0)
