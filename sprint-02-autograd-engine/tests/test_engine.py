@@ -89,11 +89,17 @@ class TestBackward(unittest.TestCase):
         L = d * f
         L.backward()
         # e=-6, d=4, L=-8; hand-derived below, check yours against it
-        expect = [(L, 1.0), (d, -2.0), (f, 4.0), (e, -2.0),
-                  (c, -2.0), (a, 6.0), (b, -4.0)]
+        expect = [
+            (L, 1.0),
+            (d, -2.0),
+            (f, 4.0),
+            (e, -2.0),
+            (c, -2.0),
+            (a, 6.0),
+            (b, -4.0),
+        ]
         for node, g in expect:
-            self.assertTrue(close(node.grad, g),
-                            f"expected grad {g}, got {node.grad}")
+            self.assertTrue(close(node.grad, g), f"expected grad {g}, got {node.grad}")
 
     def test_relu_backward(self):
         x = Value(-2.0)
@@ -107,7 +113,7 @@ class TestBackward(unittest.TestCase):
 
     def test_pow_backward(self):
         x = Value(3.0)
-        y = x ** 2
+        y = x**2
         y.backward()
         self.assertTrue(close(x.grad, 6.0))
 
@@ -137,8 +143,10 @@ class TestBackward(unittest.TestCase):
         c.backward()
         first = b.grad
         c.backward()
-        self.assertTrue(close(b.grad, first),
-                        "second backward() must recompute, not pile onto old grads")
+        self.assertTrue(
+            close(b.grad, first),
+            "second backward() must recompute, not pile onto old grads",
+        )
 
     def test_numerical_gradient_check(self):
         # THE correctness gate: analytic grads vs central finite differences.
@@ -146,7 +154,7 @@ class TestBackward(unittest.TestCase):
         def build(av, bv):
             a = Value(av)
             b = Value(bv)
-            x = a * b + b ** 2
+            x = a * b + b**2
             return a, b, x.tanh()
 
         a, b, y = build(2.0, -3.0)
@@ -163,8 +171,10 @@ class TestBackward(unittest.TestCase):
             _, _, yu = build(*up)
             _, _, yd = build(*dn)
             numeric = (yu.data - yd.data) / (2 * h)
-            self.assertTrue(close(analytic[i], numeric, tol=1e-4),
-                            f"leaf {i}: analytic {analytic[i]} vs numeric {numeric}")
+            self.assertTrue(
+                close(analytic[i], numeric, tol=1e-4),
+                f"leaf {i}: analytic {analytic[i]} vs numeric {numeric}",
+            )
 
 
 if __name__ == "__main__":
