@@ -40,39 +40,79 @@ class Value:
     # ---- binary ops: forward value + children + local backward rule ----
 
     def __add__(self, other):
-        raise NotImplementedError("your turn: forward, _children, _op, _backward")
+        if isinstance(other, Value):
+            return Value(self.data + other.data, (self, other), "+")
+        elif isinstance(other, int) or isinstance(other, float):
+            return Value(self.data + other, (self, Value(other)), "+")
+        else:
+            raise RuntimeError("Incompatible types as input")
 
     def __radd__(self, other):
-        raise NotImplementedError("your turn")
+        if isinstance(other, Value):
+            return Value(self.data + other.data, (self, other), "+")
+        elif isinstance(other, int) or isinstance(other, float):
+            return Value(self.data + other, (self, Value(other)), "+")
+        else:
+            raise RuntimeError("Incompatible types as input")
 
     def __mul__(self, other):
-        raise NotImplementedError("your turn: forward, _children, _op, _backward")
+        if isinstance(other, Value):
+            return Value(self.data * other.data, (self, other), "*")
+        elif isinstance(other, int) or isinstance(other, float):
+            return Value(self.data * other, (self, Value(other)), "*")
+        else:
+            raise RuntimeError("Incompatible types as input")
 
     def __rmul__(self, other):
-        raise NotImplementedError("your turn")
+        if isinstance(other, Value):
+            return Value(self.data * other.data, (self, other), "*")
+        elif isinstance(other, int) or isinstance(other, float):
+            return Value(self.data * other, (self, Value(other)), "*")
+        else:
+            raise RuntimeError("Incompatible types as input")
 
     def __pow__(self, other):
-        raise NotImplementedError("your turn; other must be int or float")
+        if isinstance(other, int) or isinstance(other, float):
+            return Value(self.data**other, (self, Value(other)), "**")
+        else:
+            raise RuntimeError("Incompatible types as input")
 
     def __neg__(self):
-        raise NotImplementedError("your turn (hint: -self == -1 * self)")
+        return Value(self.data * -1)
 
     def __sub__(self, other):
-        raise NotImplementedError("your turn (hint: a - b == a + (-b))")
+        if isinstance(other, Value):
+            return Value(self.data - other.data, (self, other), "-")
+        elif isinstance(other, int) or isinstance(other, float):
+            return Value(self.data - other, (self, Value(other)), "-")
+        else:
+            raise RuntimeError("Incompatible types as input")
 
     def __rsub__(self, other):
-        raise NotImplementedError("your turn")
+        if isinstance(other, Value):
+            return Value(other.data - self.data, (self, other), "-")
+        elif isinstance(other, int) or isinstance(other, float):
+            return Value(other - self.data, (self, Value(other)), "-")
+        else:
+            raise RuntimeError("Incompatible types as input")
 
     def __truediv__(self, other):
-        raise NotImplementedError("your turn (hint: a / b == a * b**-1)")
+        if isinstance(other, Value):
+            return Value(self.data / other.data, (self, other), "/")
+        elif isinstance(other, int) or isinstance(other, float):
+            return Value(self.data / other, (self, Value(other)), "/")
+        else:
+            raise RuntimeError("Incompatible types as input")
 
     # ---- unary ops ----
 
     def relu(self):
-        raise NotImplementedError("your turn")
+        if self.data <= 0:
+            return Value(0.0)
+        return self
 
     def tanh(self):
-        raise NotImplementedError("your turn; math.tanh is allowed")
+        return Value(math.tanh(self.data))
 
     # ---- the sweep ----
 
