@@ -15,6 +15,7 @@ Spec (tests rely on every line of this):
 - Accumulation: a Value feeding N ops collects grad from all N uses (+=).
 """
 
+from collections import defaultdict
 import math
 
 
@@ -41,66 +42,159 @@ class Value:
 
     def __add__(self, other):
         if isinstance(other, Value):
-            return Value(self.data + other.data, (self, other), "+")
+            out = Value(self.data + other.data, (self, other), "add")
+            out._backward = lambda: [
+                setattr(self, "grad", out.grad * (self.grad + 1)),
+                setattr(other, "grad", out.grad * (other.grad + 1)),
+            ]
+            return out
         elif isinstance(other, int) or isinstance(other, float):
-            return Value(self.data + other, (self, Value(other)), "+")
+            val = Value(other)
+            out = Value(self.data + other, (self, val), "add")
+            out._backward = lambda: [
+                setattr(self, "grad", out.grad * (self.grad + 1)),
+                setattr(val, "grad", out.grad * (val.grad + 1)),
+            ]
+            return out
         else:
             raise RuntimeError("Incompatible types as input")
 
     def __radd__(self, other):
         if isinstance(other, Value):
-            return Value(self.data + other.data, (self, other), "+")
+            out = Value(self.data + other.data, (self, other), "radd")
+            out._backward = lambda: [
+                setattr(self, "grad", out.grad * (self.grad + 1)),
+                setattr(other, "grad", out.grad * (other.grad + 1)),
+            ]
+            return out
         elif isinstance(other, int) or isinstance(other, float):
-            return Value(self.data + other, (self, Value(other)), "+")
+            val = Value(other)
+            out = Value(self.data + other, (self, val), "radd")
+            out._backward = lambda: [
+                setattr(self, "grad", out.grad * (self.grad + 1)),
+                setattr(val, "grad", out.grad * (val.grad + 1)),
+            ]
+            return out
         else:
             raise RuntimeError("Incompatible types as input")
 
     def __mul__(self, other):
         if isinstance(other, Value):
-            return Value(self.data * other.data, (self, other), "*")
+            out = Value(self.data * other.data, (self, other), "mul")
+            out._backward = lambda: [
+                setattr(self, "grad", out.grad * other.data + self.grad),
+                setattr(other, "grad", out.grad * self.data + other.grad),
+            ]
+            return out
         elif isinstance(other, int) or isinstance(other, float):
-            return Value(self.data * other, (self, Value(other)), "*")
+            val = Value(other)
+            out = Value(self.data * other, (self, val), "mul")
+            out._backward = lambda: [
+                setattr(self, "grad", out.grad * val.data + self.grad),
+                setattr(val, "grad", out.grad * self.data + val.grad),
+            ]
+            return out
         else:
             raise RuntimeError("Incompatible types as input")
 
     def __rmul__(self, other):
         if isinstance(other, Value):
-            return Value(self.data * other.data, (self, other), "*")
+            out = Value(self.data * other.data, (self, other), "rmul")
+            out._backward = lambda: [
+                setattr(self, "grad", out.grad * other.data + self.grad),
+                setattr(other, "grad", out.grad * self.data + other.grad),
+            ]
+            return out
         elif isinstance(other, int) or isinstance(other, float):
-            return Value(self.data * other, (self, Value(other)), "*")
+            val = Value(other)
+            out = Value(self.data * other, (self, val), "rmul")
+            out._backward = lambda: [
+                setattr(self, "grad", out.grad * val.data + self.grad),
+                setattr(val, "grad", out.grad * self.data + val.grad),
+            ]
+            return out
         else:
             raise RuntimeError("Incompatible types as input")
 
     def __pow__(self, other):
         if isinstance(other, int) or isinstance(other, float):
-            return Value(self.data**other, (self, Value(other)), "**")
+            out = Value(self.data**other, (self, Value(other)), "pow")
+            out._backward = lambda: [
+                setattr(
+                    self,
+                    "grad",
+                    self.grad + (other * self.data ** (other - 1) * out.grad),
+                )
+            ]
+            return out
         else:
             raise RuntimeError("Incompatible types as input")
 
     def __neg__(self):
-        return Value(self.data * -1)
+        out = Value(self.data * -1, [self], "neg")
+        out._backward = lambda: [setattr(self, "grad", self.grad + out.grad * -1)]
+        return out
 
     def __sub__(self, other):
         if isinstance(other, Value):
-            return Value(self.data - other.data, (self, other), "-")
+            out = Value(self.data - other.data, (self, other), "sub")
+            out._backward = lambda: [
+                setattr(self, "grad", self.grad + out.grad),
+                setattr(other, "grad", other.grad + (-out.grad)),
+            ]
+            return out
         elif isinstance(other, int) or isinstance(other, float):
-            return Value(self.data - other, (self, Value(other)), "-")
+            val = Value(other)
+            out = Value(self.data - other, (self, val), "sub")
+            out._backward = lambda: [
+                setattr(self, "grad", self.grad + out.grad),
+                setattr(val, "grad", val.grad + (-out.grad)),
+            ]
+            return out
         else:
             raise RuntimeError("Incompatible types as input")
 
     def __rsub__(self, other):
         if isinstance(other, Value):
-            return Value(other.data - self.data, (self, other), "-")
+            out = Value(other.data - self.data, (self, other), "rsub")
+            out._backward = lambda: [
+                setattr(other, "grad", other.grad + out.grad),
+                setattr(self, "grad", self.grad + (-out.grad)),
+            ]
+            return out
         elif isinstance(other, int) or isinstance(other, float):
-            return Value(other - self.data, (self, Value(other)), "-")
+            val = Value(other)
+            out = Value(other - self.data, (self, val), "rsub")
+            out._backward = lambda: [
+                setattr(val, "grad", val.grad + out.grad),
+                setattr(self, "grad", self.grad + (-out.grad)),
+            ]
+            return out
         else:
             raise RuntimeError("Incompatible types as input")
 
     def __truediv__(self, other):
         if isinstance(other, Value):
-            return Value(self.data / other.data, (self, other), "/")
+            out = Value(self.data / other.data, (self, other), "div")
+            out._backward = lambda: [
+                setattr(self, "grad", self.grad + (out.grad * (1 / other.data))),
+                setattr(
+                    other,
+                    "grad",
+                    other.grad + (out.grad * (-self.data / other.data**2)),
+                ),
+            ]
+            return out
         elif isinstance(other, int) or isinstance(other, float):
-            return Value(self.data / other, (self, Value(other)), "/")
+            val = Value(other)
+            out = Value(self.data / other, (self, val), "div")
+            out._backward = lambda: [
+                setattr(self, "grad", self.grad + (out.grad * (1 / val.data))),
+                setattr(
+                    val, "grad", val.grad + (out.grad * (-self.data / val.data**2))
+                ),
+            ]
+            return out
         else:
             raise RuntimeError("Incompatible types as input")
 
@@ -108,11 +202,21 @@ class Value:
 
     def relu(self):
         if self.data <= 0:
-            return Value(0.0)
-        return self
+            out = Value(0.0, [self], "rlu")
+            out._backward = lambda: [setattr(self, "grad", self.grad + 0)]
+            return out
+
+        out = Value(self.data, [self], "rlu")
+        out._backward = lambda: [setattr(self, "grad", self.grad + out.grad)]
+        return out
 
     def tanh(self):
-        return Value(math.tanh(self.data))
+        y = math.tanh(self.data)
+        out = Value(y, [self], "tanh")
+        out._backward = lambda: [
+            setattr(self, "grad", self.grad + (1 - y**2) * out.grad)
+        ]
+        return out
 
     # ---- the sweep ----
 
@@ -124,7 +228,23 @@ class Value:
         Implement the topological sort iteratively (explicit stack) — the
         benchmark builds graphs deeper than Python's recursion limit.
         """
-        raise NotImplementedError("your turn: topo sort + reverse walk")
+
+        # self.grad = 1.0
+        # self.backward()
+        topo = []
+        visited = set()
+
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._children:
+                    build_topo(child)
+            topo.append(v)
+
+        build_topo(self)
+        
+        for x in reversed(topo):
+            
 
     def __repr__(self):
         return f"Value(data={self.data}, grad={self.grad})"

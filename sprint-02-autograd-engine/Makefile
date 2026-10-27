@@ -4,6 +4,12 @@
 test:
 	python3 -m unittest discover -s tests -v
 
+test-backward:
+	python3 -m unittest tests.test_engine.TestBackwardClosures
+
+test-forward:
+	python3 -m unittest tests.test_engine.TestForward
+	
 # Graph-size scaling sweep + MLP micro-benchmark (run after tests pass)
 benchmark:
 	python3 benchmarks/bench.py
