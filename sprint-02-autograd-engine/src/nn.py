@@ -19,43 +19,77 @@ from src.engine import Value
 
 class Module:
     def parameters(self):
-        raise NotImplementedError("your turn: collect every parameter Value")
+        return []
 
     def zero_grad(self):
-        raise NotImplementedError("your turn: grad = 0.0 on every parameter")
+        for param in self.parameters():
+            param.grad = 0
 
 
 class Neuron(Module):
     def __init__(self, n_in, nonlin=True):
-        raise NotImplementedError("your turn: weights + bias ~ uniform(-1, 1)")
+        self.flag = nonlin
+        self.bias = Value(random.uniform(-1, 1))
+        self.weights = [Value(random.uniform(-1, 1))] * n_in
+        self.n_in = n_in
 
     def __call__(self, x):
         """x: list of numbers or Values, length n_in. Returns a Value."""
-        raise NotImplementedError("your turn: w·x + b, then tanh if nonlin")
+        value = 0
+        for i in range(self.n_in):
+            value += x[i] * self.weights[i]
+
+        value += self.bias
+
+        if self.flag:
+            value.tanh()
+
+        return value
 
     def parameters(self):
-        raise NotImplementedError("your turn")
+        return self.weights + [self.bias]
 
 
 class Layer(Module):
     def __init__(self, n_in, n_out, **kwargs):
-        raise NotImplementedError("your turn: n_out neurons")
+        self.neurons = [Neuron(n_in, **kwargs)] * n_out
+        self.n_out = n_out
 
     def __call__(self, x):
         """Returns a Value when n_out == 1, else a list of Values."""
-        raise NotImplementedError("your turn")
+        if self.n_out == 1:
+            return self.neurons[0](x)
+        else:
+            out = []
+            for neuron in self.neurons:
+                out.append(neuron(x))
+            return out
 
     def parameters(self):
-        raise NotImplementedError("your turn")
+        out = []
+        for neuron in self.neurons:
+            out.extend(neuron.parameters())
+        return out
 
 
 class MLP(Module):
     def __init__(self, n_in, n_outs):
         """n_outs: e.g. [16, 16, 1] -> Layer(n_in,16), Layer(16,16), Layer(16,1)."""
-        raise NotImplementedError("your turn")
+        self.layers = [Layer(n_in, n_outs[0])]
+        i = 0
+        while i < len(n_outs) - 1:
+            self.layers.append(Layer(n_outs[i], n_outs[i + 1]))
+            i += 1
 
     def __call__(self, x):
-        raise NotImplementedError("your turn: thread x through the layers")
+        output = []
+        for layer in self.layers:
+            output = layer(x)
+            x = output if isinstance(output, list) else [output]
+        return output
 
     def parameters(self):
-        raise NotImplementedError("your turn")
+        out = []
+        for x in self.layers:
+            out.extend(x.parameters())
+        return out
