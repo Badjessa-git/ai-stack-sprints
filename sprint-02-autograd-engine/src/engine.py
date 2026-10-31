@@ -232,6 +232,8 @@ class Value:
         topo: list[Value] = []
         worklist: list[tuple[Value, bool]] = []
         worklist.append((self, False))
+        visited = set()
+
         while worklist:
             node, processed = worklist.pop()
             if not processed:
@@ -241,8 +243,9 @@ class Value:
                 if parents:
                     worklist.extend((x, False) for x in parents)
 
-            if processed:
+            if processed and node not in visited:
                 topo.append(node)
+                visited.add(node)
 
         # reverse order
         topo.reverse()
