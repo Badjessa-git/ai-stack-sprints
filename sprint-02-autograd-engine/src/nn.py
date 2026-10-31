@@ -30,7 +30,9 @@ class Neuron(Module):
     def __init__(self, n_in, nonlin=True):
         self.flag = nonlin
         self.bias = Value(random.uniform(-1, 1))
-        self.weights = [Value(random.uniform(-1, 1))] * n_in
+        self.weights = []
+        for i in range(n_in):
+            self.weights.append(Value(random.uniform(-1, 1)))
         self.n_in = n_in
 
     def __call__(self, x):
@@ -42,7 +44,7 @@ class Neuron(Module):
         value += self.bias
 
         if self.flag:
-            value.tanh()
+            return value.tanh()
 
         return value
 
@@ -52,7 +54,9 @@ class Neuron(Module):
 
 class Layer(Module):
     def __init__(self, n_in, n_out, **kwargs):
-        self.neurons = [Neuron(n_in, **kwargs)] * n_out
+        self.neurons = []
+        for i in range(n_out):
+            self.neurons.append(Neuron(n_in, **kwargs))
         self.n_out = n_out
 
     def __call__(self, x):
