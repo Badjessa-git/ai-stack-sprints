@@ -44,16 +44,16 @@ class Value:
         if isinstance(other, Value):
             out = Value(self.data + other.data, (self, other), "add")
             out._backward = lambda: [
-                setattr(self, "grad", out.grad * (self.grad + 1)),
-                setattr(other, "grad", out.grad * (other.grad + 1)),
+                setattr(self, "grad", self.grad + out.grad),
+                setattr(other, "grad", other.grad + out.grad),
             ]
             return out
         elif isinstance(other, int) or isinstance(other, float):
             val = Value(other)
             out = Value(self.data + other, (self, val), "add")
             out._backward = lambda: [
-                setattr(self, "grad", out.grad * (self.grad + 1)),
-                setattr(val, "grad", out.grad * (val.grad + 1)),
+                setattr(self, "grad", out.grad + self.grad),
+                setattr(val, "grad", out.grad + val.grad),
             ]
             return out
         else:
@@ -63,16 +63,16 @@ class Value:
         if isinstance(other, Value):
             out = Value(self.data + other.data, (self, other), "radd")
             out._backward = lambda: [
-                setattr(self, "grad", out.grad * (self.grad + 1)),
-                setattr(other, "grad", out.grad * (other.grad + 1)),
+                setattr(self, "grad", out.grad + self.grad),
+                setattr(other, "grad", out.grad + other.grad),
             ]
             return out
         elif isinstance(other, int) or isinstance(other, float):
             val = Value(other)
             out = Value(self.data + other, (self, val), "radd")
             out._backward = lambda: [
-                setattr(self, "grad", out.grad * (self.grad + 1)),
-                setattr(val, "grad", out.grad * (val.grad + 1)),
+                setattr(self, "grad", out.grad + self.grad),
+                setattr(val, "grad", out.grad + val.grad),
             ]
             return out
         else:
@@ -229,22 +229,28 @@ class Value:
         benchmark builds graphs deeper than Python's recursion limit.
         """
 
-        # self.grad = 1.0
-        # self.backward()
-        topo = []
-        visited = set()
+        topo: list[Value] = []
+        worklist: list[tuple[Value, bool]] = []
+        worklist.append((self, False))
+        while worklist:
+            node, processed = worklist.pop()
+            if not processed:
+                node.grad = 0
+                parents = node._prev
+                worklist.append((node, True))
+                if parents:
+                    worklist.extend((x, False) for x in parents)
 
-        def build_topo(v):
-            if v not in visited:
-                visited.add(v)
-                for child in v._children:
-                    build_topo(child)
-            topo.append(v)
+            if processed:
+                topo.append(node)
 
-        build_topo(self)
-        
-        for x in reversed(topo):
-            
+        # reverse order
+        topo.reverse()
+
+        # Set this nodes grad to 1
+        self.grad = 1.0
+        for node in topo:
+            node._backward()
 
     def __repr__(self):
         return f"Value(data={self.data}, grad={self.grad})"
