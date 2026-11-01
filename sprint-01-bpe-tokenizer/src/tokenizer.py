@@ -110,20 +110,67 @@ class BPETokenizer:
         i = 0
         id = 256
         token_ids = list(text.encode("utf-8"))
+        stats = get_stats(token_ids=token_ids)
 
-        # Optimization instead of sorting the algorithm, we walk through it once and keep track of the 
+        # Optimization instead of sorting the algorithm, we walk through it once and keep track of the
         while i < vocab_size - MIN_VOCAB_SIZE:
-            stats = get_stats(token_ids=token_ids)
             if not stats:
                 break;
-            
+
             (left, right), value = self.__find_max_frequency_pair(stats)
             if value < min_frequency:
                 break
 
             self.merges[(left, right)] = id
-            token_ids = merge_pair(token_ids=token_ids, pair=(left, right), new_id=id)
+            new_token_ids = merge_pair(token_ids=token_ids, pair=(left, right), new_id=id)
             self.__byte_lookup_table[id] = (left, right)
+
+            # Target 3: update the pair counts incrementally around the merge
+            # sites instead of recounting the whole sequence next round.
+            j = 0
+            old_token_size = len(token_ids)
+            pair = (left, right)
+            for x in range(len(new_token_ids)):
+                if new_token_ids[x] != id:
+                    j += 1
+                    continue
+
+                while (token_ids[j], token_ids[j + 1]) != pair and j < old_token_size:
+                    j += 1
+
+                if (token_ids[j], token_ids[j + 1]) == pair:
+                    value = stats[pair] - 1
+                    if value == 0:
+                        stats.pop(pair)
+                    else:
+                        stats[pair] = value
+
+                    if j > 0 and new_token_ids[x - 1] != id:
+                        value = stats[(token_ids[j - 1], token_ids[j])] - 1
+                        if value == 0:
+                            stats.pop((token_ids[j - 1], token_ids[j]))
+                        else:
+                            stats[(token_ids[j - 1], token_ids[j])] = value
+
+                    if j < old_token_size - 2:
+                        value = stats[(token_ids[j + 1], token_ids[j + 2])] - 1
+                        if value == 0:
+                            stats.pop((token_ids[j + 1], token_ids[j + 2]))
+                        else:
+                            stats[(token_ids[j + 1], token_ids[j + 2])] = value
+
+                if x < len(new_token_ids) - 1:
+                    right_pair = (new_token_ids[x], new_token_ids[x + 1])
+                    stats[right_pair] = (
+                        stats[right_pair] + 1 if right_pair in stats else 1
+                    )
+
+                if x > 0 and new_token_ids[x - 1] != id:
+                    left_pair = (new_token_ids[x - 1], new_token_ids[x])
+                    stats[left_pair] = stats[left_pair] + 1 if left_pair in stats else 1
+                j += 2
+
+            token_ids = new_token_ids
             i += 1 # increase pointer
             id += 1 # new ids
 
