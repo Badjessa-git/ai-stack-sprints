@@ -15,7 +15,8 @@ Standard library only.
 
 from __future__ import annotations
 
-MIN_VOCAB_SIZE = 256 # max size for base vocabulary
+MIN_VOCAB_SIZE = 256  # max size for base vocabulary
+
 
 def get_stats(token_ids: list[int]) -> dict[tuple[int, int], int]:
     """Count how often each adjacent pair occurs.
@@ -30,8 +31,8 @@ def get_stats(token_ids: list[int]) -> dict[tuple[int, int], int]:
     # if first time then set it to 1 in the hashmap
 
     result = {}
-    for i in range(len(token_ids) -1):
-        pair = (token_ids[i], token_ids[i+1])
+    for i in range(len(token_ids) - 1):
+        pair = (token_ids[i], token_ids[i + 1])
         if pair in result:
             result[pair] = result[pair] + 1
         else:
@@ -40,9 +41,7 @@ def get_stats(token_ids: list[int]) -> dict[tuple[int, int], int]:
     return result
 
 
-def merge_pair(
-    token_ids: list[int], pair: tuple[int, int], new_id: int
-) -> list[int]:
+def merge_pair(token_ids: list[int], pair: tuple[int, int], new_id: int) -> list[int]:
     """Return a NEW list where every non-overlapping occurrence of `pair`
     is replaced by `new_id`, scanning left to right.
 
@@ -59,14 +58,15 @@ def merge_pair(
             result.append(token_ids[i])
             return result
 
-        current_pair = (token_ids[i], token_ids[i+1])
+        current_pair = (token_ids[i], token_ids[i + 1])
         if current_pair == pair:
             result.append(new_id)
-            i += 2 # non-overlapping pair so we want to skip 
+            i += 2  # non-overlapping pair so we want to skip
         else:
             result.append(token_ids[i])
             i += 1
     return result
+
 
 class BPETokenizer:
     """Byte-level BPE tokenizer (simplified GPT-2 style).
@@ -106,7 +106,7 @@ class BPETokenizer:
 
         self.merges = {}
         self.__byte_lookup_table = {}
-        
+
         i = 0
         id = 256
         token_ids = list(text.encode("utf-8"))
@@ -115,14 +115,16 @@ class BPETokenizer:
         # Optimization instead of sorting the algorithm, we walk through it once and keep track of the
         while i < vocab_size - MIN_VOCAB_SIZE:
             if not stats:
-                break;
+                break
 
-            (left, right), value = self.__find_max_frequency_pair(stats)
+            (left, right), value = self.__find_max_frequency_pair(stats, token_ids)
             if value < min_frequency:
                 break
 
             self.merges[(left, right)] = id
-            new_token_ids = merge_pair(token_ids=token_ids, pair=(left, right), new_id=id)
+            new_token_ids = merge_pair(
+                token_ids=token_ids, pair=(left, right), new_id=id
+            )
             self.__byte_lookup_table[id] = (left, right)
 
             # Target 3: update the pair counts incrementally around the merge
@@ -171,13 +173,15 @@ class BPETokenizer:
                 j += 2
 
             token_ids = new_token_ids
-            i += 1 # increase pointer
-            id += 1 # new ids
+            i += 1  # increase pointer
+            id += 1  # new ids
 
-    def __find_max_frequency_pair(self, stats: dict[tuple[int, int], int]) -> tuple[tuple[int, int], int]:
+    def __find_max_frequency_pair(
+        self, stats: dict[tuple[int, int], int], token_list: list[int]
+    ) -> tuple[tuple[int, int], int]:
         """
-        Return the max frequency pair found in the token_ids list, we've used sorted before for this with 
-        has Big O(nlogn), but we can easily find this by doing it one pass improving the performance to 
+        Return the max frequency pair found in the token_ids list, we've used sorted before for this with
+        has Big O(nlogn), but we can easily find this by doing it one pass improving the performance to
         Big 0(n)
         """
 
@@ -193,10 +197,24 @@ class BPETokenizer:
                 max_pair = (pair, value)
 
         if max_pair == ((0, 0), 0):
-            raise ValueError("Invalid dictionary provided as input, cannot contains zero")
+            raise ValueError(
+                "Invalid dictionary provided as input, cannot contains zero"
+            )
+
+        potential_candidates = [
+            key for key, value in stats.items() if value == max_pair[1]
+        ]
+
+        if len(potential_candidates) > 1:
+            candidates = set()
+            candidates.add(max_pair[0])
+            candidates.update(potential_candidates)
+
+            for i in range(len(token_list) - 1):
+                if (token_list[i], token_list[i + 1]) in candidates:
+                    return ((token_list[i], token_list[i + 1]), max_pair[1])
 
         return max_pair
-
 
     # -- inference --------------------------------------------------------
     def encode(self, text: str) -> list[int]:
@@ -216,9 +234,11 @@ class BPETokenizer:
         iterator = iter(self.merges.items())
         for i in range(size):
             (left, right), new_id = next(iterator)
-            token_ids = merge_pair(token_ids=token_ids, pair=(left, right), new_id=new_id)
+            token_ids = merge_pair(
+                token_ids=token_ids, pair=(left, right), new_id=new_id
+            )
         return token_ids
-            
+
     def decode(self, token_ids: list[int]) -> str:
         """Decode token ids back to text. Must be the exact inverse of
         encode(): decode(encode(s)) == s for any string s.
@@ -232,14 +252,14 @@ class BPETokenizer:
         for valid token sequences produced by encode().
         """
 
-        # so we need to replace each encoding with its pair in the text, until we get the original 
+        # so we need to replace each encoding with its pair in the text, until we get the original
         # token list and then call decode with UTF 8 to get the text value
         # [2, 3, 2, 3, 1] => [2, 3] = 2, 1 = 1 => [256, 256, 1]
 
         decoded_list = []
         for i in range(len(token_ids)):
             decoded_list.extend(self.__decode_single(token_id=token_ids[i]))
-        
+
         byte_array = bytes(decoded_list)
         return byte_array.decode("utf-8")
 
@@ -248,18 +268,18 @@ class BPETokenizer:
         Recursively decode the token ids and return a list to the top level function
         which builds the string to be returned
         """
-        if (token_id < MIN_VOCAB_SIZE):
+        if token_id < MIN_VOCAB_SIZE:
             return [token_id]
-        
+
         if token_id in self.__byte_lookup_table:
-            (left, right) = self.__byte_lookup_table[token_id]
+            left, right = self.__byte_lookup_table[token_id]
             left_decode = []
             right_decode = []
             if left >= MIN_VOCAB_SIZE:
                 left_decode.extend(self.__decode_single(left))
             else:
                 left_decode = [left]
-            
+
             if right >= MIN_VOCAB_SIZE:
                 right_decode.extend(self.__decode_single(right))
             else:
@@ -268,8 +288,6 @@ class BPETokenizer:
             result = left_decode + right_decode
             return result
         else:
-            raise RuntimeError("ID above 255 not available in lookup table, there was an error during training")
-            
-
-
-
+            raise RuntimeError(
+                "ID above 255 not available in lookup table, there was an error during training"
+            )
