@@ -1,0 +1,91 @@
+"""Frozen copy of your Sprint 2 nn library (sprint-02-autograd-engine/src/nn.py,
+commit e883d6d on main). Do not re-implement it. It is complete.
+
+The transformer uses Layer(..., nonlin=False) as its linear layers and
+Module.parameters() / zero_grad() for training. No changes needed here.
+"""
+
+import random
+from src.engine import Value
+
+
+class Module:
+    def parameters(self):
+        return []
+
+    def zero_grad(self):
+        for param in self.parameters():
+            param.grad = 0
+
+
+class Neuron(Module):
+    def __init__(self, n_in, nonlin=True):
+        self.flag = nonlin
+        self.bias = Value(random.uniform(-1, 1))
+        self.weights = []
+        for i in range(n_in):
+            self.weights.append(Value(random.uniform(-1, 1)))
+        self.n_in = n_in
+
+    def __call__(self, x):
+        """x: list of numbers or Values, length n_in. Returns a Value."""
+        value = 0
+        for i in range(self.n_in):
+            value += x[i] * self.weights[i]
+
+        value += self.bias
+
+        if self.flag:
+            return value.tanh()
+
+        return value
+
+    def parameters(self):
+        return self.weights + [self.bias]
+
+
+class Layer(Module):
+    def __init__(self, n_in, n_out, **kwargs):
+        self.neurons = []
+        for i in range(n_out):
+            self.neurons.append(Neuron(n_in, **kwargs))
+        self.n_out = n_out
+
+    def __call__(self, x):
+        """Returns a Value when n_out == 1, else a list of Values."""
+        if self.n_out == 1:
+            return self.neurons[0](x)
+        else:
+            out = []
+            for neuron in self.neurons:
+                out.append(neuron(x))
+            return out
+
+    def parameters(self):
+        out = []
+        for neuron in self.neurons:
+            out.extend(neuron.parameters())
+        return out
+
+
+class MLP(Module):
+    def __init__(self, n_in, n_outs):
+        """n_outs: e.g. [16, 16, 1] -> Layer(n_in,16), Layer(16,16), Layer(16,1)."""
+        self.layers = [Layer(n_in, n_outs[0])]
+        i = 0
+        while i < len(n_outs) - 1:
+            self.layers.append(Layer(n_outs[i], n_outs[i + 1]))
+            i += 1
+
+    def __call__(self, x):
+        output = []
+        for layer in self.layers:
+            output = layer(x)
+            x = output if isinstance(output, list) else [output]
+        return output
+
+    def parameters(self):
+        out = []
+        for x in self.layers:
+            out.extend(x.parameters())
+        return out
