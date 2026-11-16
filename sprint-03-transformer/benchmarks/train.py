@@ -55,6 +55,13 @@ def _save_weights(model, path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--steps", type=int, default=100)
+    parser.add_argument(
+        "--epochs",
+        type=float,
+        default=None,
+        help="passes over the corpus (overrides --steps). One epoch is "
+        "len(corpus) // block_size steps.",
+    )
     parser.add_argument("--lr", type=float, default=0.05)
     parser.add_argument(
         "--optimizer",
@@ -121,6 +128,10 @@ def main():
     stoi = {c: i for i, c in enumerate(chars)}
     itos = {i: c for c, i in stoi.items()}
     data = [stoi[c] for c in text]
+
+    if args.epochs is not None:
+        args.steps = int(args.epochs * len(data) / args.block_size)
+        print(f"epochs {args.epochs} -> {args.steps} steps")
 
     random.seed(args.seed)
     model = Transformer(
