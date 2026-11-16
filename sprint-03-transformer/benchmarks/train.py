@@ -22,6 +22,17 @@ import random
 import sys
 import time
 
+# Keep the BLAS math library to one thread. The matrices here are tiny,
+# so threads buy nothing — but on Apple Silicon, NumPy's Accelerate
+# backend can segfault when it spreads small matrix ops across threads
+# (seen Nov 16, 2026: the d128 run died with a segfault on an M4 Pro).
+# These must be set before NumPy is imported, so they live here at the
+# top. setdefault respects a value you already set in the shell.
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 CORPUS = os.path.join(

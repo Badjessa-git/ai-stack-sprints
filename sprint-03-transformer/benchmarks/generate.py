@@ -4,6 +4,14 @@ import os
 import random
 import sys
 
+# See benchmarks/train.py: keep BLAS to one thread. On Apple Silicon,
+# NumPy's Accelerate backend can segfault on small threaded matrix ops.
+# Must be set before NumPy is imported.
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
