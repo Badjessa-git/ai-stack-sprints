@@ -1,4 +1,4 @@
-"""Tests for the NumPy transformer (src/numpy_transformer.py).
+"""Tests for the NumPy transformer (src/numpy/transformer.py).
 
 These mirror tests/test_transformer.py: same expected numbers, same
 shapes, same training acceptance test — because the NumPy engine is the
@@ -22,8 +22,8 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.numpy_engine import Tensor  # noqa: E402
-from src.numpy_transformer import (  # noqa: E402
+from src.numpy.engine import Tensor  # noqa: E402
+from src.numpy.transformer import (  # noqa: E402
     Block,
     CausalSelfAttention,
     Embedding,
@@ -34,7 +34,7 @@ from src.numpy_transformer import (  # noqa: E402
     gelu,
     softmax,
 )
-from src.transformer import Transformer as ScalarTransformer  # noqa: E402
+from src.scalar.transformer import Transformer as ScalarTransformer  # noqa: E402
 from test_numpy_engine import gradcheck_tensor  # noqa: E402
 
 CORPUS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

@@ -39,7 +39,7 @@ version of the attention walk in "The operations, defined" below.
 
 Work in order. Each step has tests; a step is done when its tests pass.
 
-**Step 0 — the engine, first.** Two things, both in `src/engine.py`
+**Step 0 — the engine, first.** Two things, both in `src/scalar/engine.py`
 (the frozen copy of your Sprint 2 engine):
 
 - (a) Add `Value.exp()` and `Value.log()`, shaped exactly like `tanh()`.
@@ -284,10 +284,17 @@ The post may only claim what was discussed here.
 
 ## Files
 
-- `src/engine.py`, `src/nn.py` — frozen copies of your merged Sprint 2
+- `src/scalar/engine.py`, `src/scalar/nn.py` — frozen copies of your merged Sprint 2
   files (commit e883d6d). Step 0 edits the engine copy only.
-- `src/transformer.py` — the stub: API, docstrings, and the `parameters()`
+- `src/scalar/transformer.py` — the stub: API, docstrings, and the `parameters()`
   wiring are done; the bodies are yours.
+- `src/numpy/` — the same transformer rebuilt on NumPy arrays (Tensor
+  autograd in `engine.py`, Linear in `nn.py`, the model in
+  `transformer.py`). Same classes, same init, same weights from the same
+  seed — verified against the scalar engine by the cross-engine tests.
+  Switch engines in `benchmarks/train.py` with `--engine {scalar,numpy}`.
+  The NumPy engine is ~4000x faster per step on the VM, so it is the one
+  for long training runs.
 - `tests/test_transformer.py` — 27 tests. Stubs fail 26 of them.
 - `benchmarks/bench.py` — one-step timing. `benchmarks/train.py` — the
   training loop (`--steps`, `--lr`, `--d-model`, `--block-size`, `--sample`).

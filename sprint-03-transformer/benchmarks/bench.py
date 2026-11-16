@@ -20,7 +20,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.transformer import Transformer  # noqa: E402
+from src.scalar.transformer import Transformer  # noqa: E402
 
 CORPUS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                       "data", "corpus.txt")

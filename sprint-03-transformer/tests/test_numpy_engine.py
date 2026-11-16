@@ -1,4 +1,4 @@
-"""Tests for the NumPy engine (src/numpy_engine.py).
+"""Tests for the NumPy engine (src/numpy/engine.py).
 
 Every op gets a gradcheck: the analytic gradient from backward() against
 central finite differences. If an op's forward is right but its backward
@@ -17,7 +17,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.numpy_engine import Tensor, concat  # noqa: E402
+from src.numpy.engine import Tensor, concat  # noqa: E402
 
 
 def gradcheck_tensor(fn, xs, eps=1e-6, tol=1e-4):

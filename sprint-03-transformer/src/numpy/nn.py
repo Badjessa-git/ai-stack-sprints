@@ -1,4 +1,4 @@
-"""NumPy nn: the same Module / linear-layer shapes as src/nn.py, but the
+"""NumPy nn: the same Module / linear-layer shapes as src/scalar/nn.py, but the
 numbers live in arrays (Tensor) instead of one Value per scalar.
 
 The weight init draws random.uniform(-1, 1) in exactly the same order as
@@ -12,7 +12,7 @@ import random
 
 import numpy as np
 
-from src.numpy_engine import Tensor
+from src.numpy.engine import Tensor
 
 
 class Module:
@@ -28,7 +28,7 @@ class Linear(Module):
     """One linear layer: y = x @ W.T + b.
 
     W is (n_out, n_in), b is (n_out,). This replaces Layer(..., nonlin=
-    False) from src/nn.py: the scalar Layer is a list of Neurons, each
+    False) from src/scalar/nn.py: the scalar Layer is a list of Neurons, each
     computing one output as a dot product; this is the same computation
     as one matrix multiply over all outputs at once.
     """

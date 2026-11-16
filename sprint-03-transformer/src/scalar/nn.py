@@ -6,7 +6,7 @@ Module.parameters() / zero_grad() for training. No changes needed here.
 """
 
 import random
-from src.engine import Value
+from src.scalar.engine import Value
 
 
 class Module:

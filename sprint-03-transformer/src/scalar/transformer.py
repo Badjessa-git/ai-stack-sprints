@@ -1,8 +1,8 @@
 """Transformer block + tiny character LM — SCAFFOLD.
 
 You implement everything marked NotImplementedError. Your Sprint 2 engine
-(src/engine.py, a frozen copy of your merged work) and nn library
-(src/nn.py) are already here and complete, except for two new ops you add
+(src/scalar/engine.py, a frozen copy of your merged work) and nn library
+(src/scalar/nn.py) are already here and complete, except for two new ops you add
 in Step 0: Value.exp() and Value.log().
 
 How the pieces fit (read the README first — it teaches each one in plain
@@ -13,7 +13,7 @@ words before you code it):
 Conventions, same as Sprint 2:
 - Everything is a list of engine.Value objects. A vector is a list of
   Values; a sequence is a list of vectors.
-- Layers from src.nn return a single Value when n_out == 1, else a list.
+- Layers from src.scalar.nn return a single Value when n_out == 1, else a list.
 - Every module subclasses Module, implements parameters(), and gets
   zero_grad() for free.
 - Forward builds the graph; loss.backward() differentiates it. A forward
@@ -25,8 +25,8 @@ from functools import reduce
 import math
 import random
 
-from src.engine import Value
-from src.nn import Layer, Module
+from src.scalar.engine import Value
+from src.scalar.nn import Layer, Module
 
 
 def softmax(xs):

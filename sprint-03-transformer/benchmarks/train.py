@@ -85,9 +85,9 @@ def main():
     args = parser.parse_args()
 
     if args.engine == "numpy":
-        from src.numpy_transformer import Transformer
+        from src.numpy.transformer import Transformer
     else:
-        from src.transformer import Transformer
+        from src.scalar.transformer import Transformer
 
     text = open(args.corpus).read()
     chars = sorted(set(text))

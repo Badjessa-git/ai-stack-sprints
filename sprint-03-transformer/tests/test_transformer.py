@@ -6,7 +6,7 @@ Run from sprint-03-transformer/:
 How to read a failure:
   * A test that raises NotImplementedError means that piece is not built yet.
   * A test that returns wrong numbers means the math is off — check the
-    forward formula first (the docstrings in src/transformer.py state each
+    forward formula first (the docstrings in src/scalar/transformer.py state each
     one in plain words), then the reverse share.
   * TestTransformerTraining is the acceptance test for the whole sprint.
     It only passes when the transformer is right AND one training step
@@ -26,8 +26,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.engine import Value  # noqa: E402
-from src.transformer import (  # noqa: E402
+from src.scalar.engine import Value  # noqa: E402
+from src.scalar.transformer import (  # noqa: E402
     Block,
     CausalSelfAttention,
     Embedding,

@@ -1,4 +1,4 @@
-"""NumPy engine: the same reverse-mode autograd as src/engine.py, but each
+"""NumPy engine: the same reverse-mode autograd as src/scalar/engine.py, but each
 node holds a whole array of numbers instead of one scalar.
 
 Why this exists
@@ -13,7 +13,7 @@ C code. That is the entire speedup: same math, same gradients, far fewer
 Python operations. NumPy also spreads big matrix work across cores, so
 the other cores get used without any parallel code.
 
-How to read it next to src/engine.py
+How to read it next to src/scalar/engine.py
 --------------------------------------
 - Tensor is Value, with `data` an np.ndarray (float64) instead of a float.
 - Every op has the same shape: compute the forward array, build the
@@ -81,7 +81,7 @@ class Tensor:
     `data` is the array. `grad` is dL/d(self) for whatever scalar loss L
     backward() was last called on — it starts at zeros and is filled in
     by backward(). `_prev` / `_op` / `_backward` are the graph structure,
-    exactly as in src/engine.py.
+    exactly as in src/scalar/engine.py.
     """
 
     def __init__(self, data, _children=(), _op="", label=""):

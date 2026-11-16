@@ -1,5 +1,5 @@
-"""NumPy transformer — the same model as src/transformer.py, built on the
-NumPy engine (src/numpy_engine.py) instead of the scalar Value engine.
+"""NumPy transformer — the same model as src/scalar/transformer.py, built on the
+NumPy engine (src/numpy/engine.py) instead of the scalar Value engine.
 
 Same classes, same __init__ signatures, same method names, same weight
 init (random.uniform draws in the same order, so the same seed gives the
@@ -32,8 +32,8 @@ import random
 
 import numpy as np
 
-from src.numpy_engine import Tensor, concat
-from src.numpy_nn import Linear, Module
+from src.numpy.engine import Tensor, concat
+from src.numpy.nn import Linear, Module
 
 
 def softmax(xs, axis=-1):
