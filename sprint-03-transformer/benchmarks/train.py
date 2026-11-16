@@ -80,6 +80,13 @@ def main():
         "--save", type=str, default=None, help="path to save the trained weights (JSON)"
     )
     parser.add_argument(
+        "--load",
+        type=str,
+        default=None,
+        help="path to weights JSON to start from (resume training). "
+        "Architecture flags must match the run that saved them.",
+    )
+    parser.add_argument(
         "--corpus",
         type=str,
         default=CORPUS,
@@ -115,6 +122,24 @@ def main():
         n_layer=args.n_layer,
         block_size=args.block_size,
     )
+    if args.load:
+        import numpy as np
+
+        weights = json.load(open(args.load))
+        assert len(weights) == len(model.parameters()), (
+            f"weights file has {len(weights)} tensors, model has "
+            f"{len(model.parameters())} — architecture flags must match "
+            "the run that saved them"
+        )
+        for p, w in zip(model.parameters(), weights):
+            arr = np.array(w) if args.engine == "numpy" else w
+            assert np.shape(arr) == np.shape(p.data), (
+                f"weight shape {np.shape(arr)} != model shape "
+                f"{np.shape(p.data)} — architecture flags must match "
+                "the run that saved them"
+            )
+            p.data = arr
+        print(f"resumed from {args.load} ({len(weights)} weights)")
     print(
         f"engine {args.engine}, vocab {vocab_size}, params {len(model.parameters())}, "
         f"d_model {args.d_model}, block {args.block_size}, "

@@ -74,7 +74,13 @@ def main():
     assert len(weights) == len(model.parameters())
     for p, w in zip(model.parameters(), weights):
         # NumPy weights were saved as nested lists; rebuild the array.
-        p.data = np.array(w) if args.engine == "numpy" else w
+        arr = np.array(w) if args.engine == "numpy" else w
+        assert np.shape(arr) == np.shape(p.data), (
+            f"weight shape {np.shape(arr)} != model shape "
+            f"{np.shape(p.data)} — architecture flags must match "
+            "the run that saved them"
+        )
+        p.data = arr
 
     idx = [stoi[c] for c in args.prompt]
     gen = model.generate(
