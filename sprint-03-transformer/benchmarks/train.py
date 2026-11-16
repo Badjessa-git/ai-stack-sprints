@@ -56,6 +56,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--steps", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.05)
+    parser.add_argument(
+        "--optimizer",
+        choices=["sgd", "adam"],
+        default="sgd",
+        help="sgd: plain gradient descent (what we've used so far). "
+        "adam: momentum + per-weight adaptive step size — converges "
+        "faster and lower for transformers.",
+    )
     parser.add_argument("--d-model", type=int, default=16)
     parser.add_argument("--n-head", type=int, default=2)
     parser.add_argument("--n-layer", type=int, default=1)
@@ -140,6 +148,21 @@ def main():
             )
             p.data = arr
         print(f"resumed from {args.load} ({len(weights)} weights)")
+    # Adam keeps two running averages per parameter: m (momentum — the
+    # smoothed gradient) and v (squared gradients — how big they've
+    # been). Same shape as the parameter, all zeros to start.
+    adam_state = None
+    if args.optimizer == "adam":
+        adam_state = []
+        for p in model.parameters():
+            if hasattr(p.data, "tolist"):  # numpy array
+                import numpy as np
+
+                adam_state.append(
+                    [np.zeros_like(p.data), np.zeros_like(p.data)]
+                )
+            else:  # scalar float
+                adam_state.append([0.0, 0.0])
     print(
         f"engine {args.engine}, vocab {vocab_size}, params {len(model.parameters())}, "
         f"d_model {args.d_model}, block {args.block_size}, "
@@ -153,8 +176,21 @@ def main():
         loss = model.loss(idx)
         model.zero_grad()
         loss.backward()
-        for p in model.parameters():
-            p.data -= args.lr * p.grad
+        if args.optimizer == "adam":
+            beta1, beta2, eps = 0.9, 0.999, 1e-8
+            t = step + 1
+            for state, p in zip(adam_state, model.parameters()):
+                m, v = state
+                g = p.grad
+                m = beta1 * m + (1 - beta1) * g
+                v = beta2 * v + (1 - beta2) * (g ** 2)
+                state[0], state[1] = m, v
+                m_hat = m / (1 - beta1 ** t)
+                v_hat = v / (1 - beta2 ** t)
+                p.data -= args.lr * m_hat / (v_hat ** 0.5 + eps)
+        else:
+            for p in model.parameters():
+                p.data -= args.lr * p.grad
         if (
             args.save
             and args.checkpoint_every
