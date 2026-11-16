@@ -4,9 +4,9 @@ import os
 import random
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import numpy as np
 
-from src.transformer import Transformer  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 CORPUS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "corpus.txt"
@@ -24,9 +24,26 @@ def main():
     parser.add_argument("--n-layer", type=int, default=1)
     parser.add_argument("--block-size", type=int, default=8)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument(
+        "--engine",
+        choices=["scalar", "numpy"],
+        default="scalar",
+        help="must match the engine the weights were trained with",
+    )
+    parser.add_argument(
+        "--corpus",
+        type=str,
+        default=CORPUS,
+        help="training text file (must match the training run's corpus)",
+    )
     args = parser.parse_args()
 
-    text = open(CORPUS).read()
+    if args.engine == "numpy":
+        from src.numpy_transformer import Transformer
+    else:
+        from src.transformer import Transformer
+
+    text = open(args.corpus).read()
     chars = sorted(set(text))
     stoi = {c: i for i, c in enumerate(chars)}
     itos = {i: c for c, i in stoi.items()}
@@ -42,7 +59,8 @@ def main():
     weights = json.load(open(args.load))
     assert len(weights) == len(model.parameters())
     for p, w in zip(model.parameters(), weights):
-        p.data = w
+        # NumPy weights were saved as nested lists; rebuild the array.
+        p.data = np.array(w) if args.engine == "numpy" else w
 
     idx = [stoi[c] for c in args.prompt]
     gen = model.generate(idx, args.chars, temperature=args.temperature)

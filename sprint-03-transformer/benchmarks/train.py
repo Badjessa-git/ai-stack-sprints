@@ -24,11 +24,21 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.transformer import Transformer  # noqa: E402
-
 CORPUS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "corpus.txt"
 )
+
+
+def _save_weights(model, path):
+    """Save parameters as JSON. A NumPy array becomes a nested list; a
+    plain number stays a number. generate.py loads it back with the
+    matching --engine."""
+    data = [
+        p.data.tolist() if hasattr(p.data, "tolist") else p.data
+        for p in model.parameters()
+    ]
+    with open(path, "w") as f:
+        json.dump(data, f)
 
 
 def main():
@@ -49,6 +59,13 @@ def main():
         "that is Sprint 6)",
     )
     parser.add_argument(
+        "--engine",
+        choices=["scalar", "numpy"],
+        default="scalar",
+        help="autograd engine: scalar (one Value per number) or numpy "
+        "(arrays — same model, same math, much faster)",
+    )
+    parser.add_argument(
         "--save", type=str, default=None, help="path to save the trained weights (JSON)"
     )
     parser.add_argument(
@@ -67,6 +84,11 @@ def main():
 
     args = parser.parse_args()
 
+    if args.engine == "numpy":
+        from src.numpy_transformer import Transformer
+    else:
+        from src.transformer import Transformer
+
     text = open(args.corpus).read()
     chars = sorted(set(text))
     vocab_size = len(chars)
@@ -83,7 +105,7 @@ def main():
         block_size=args.block_size,
     )
     print(
-        f"vocab {vocab_size}, params {len(model.parameters())}, "
+        f"engine {args.engine}, vocab {vocab_size}, params {len(model.parameters())}, "
         f"d_model {args.d_model}, block {args.block_size}, "
         f"steps {args.steps}, lr {args.lr}"
     )
@@ -102,8 +124,7 @@ def main():
             and args.checkpoint_every
             and (step + 1) % args.checkpoint_every == 0
         ):
-            with open(args.save, "w") as f:
-                json.dump([p.data for p in model.parameters()], f)
+            _save_weights(model, args.save)
             print(f"checkpoint step {step + 1} -> {args.save}")
         if step % 10 == 0 or step == args.steps - 1:
             print(
@@ -111,8 +132,7 @@ def main():
             )
 
     if args.save:
-        with open(args.save, "w") as f:
-            json.dump([p.data for p in model.parameters()], f)
+        _save_weights(model, args.save)
         print(f"saved {len(model.parameters())} weights to {args.save}")
 
     print(
