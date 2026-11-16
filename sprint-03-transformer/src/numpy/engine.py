@@ -96,10 +96,14 @@ def dropout(x, p=0.1, training=True):
     """
     if not training or p == 0:
         return x
-    raise NotImplementedError(
-        "dropout is yours to implement: mask, scale by 1/(1-p), backward "
-        "through the mask. See tests/test_numpy_dropout.py for the contract."
-    )
+    mask = (np.random.rand(*x.data.shape) > p).astype(np.float64)
+    out = Tensor(x.data * mask / (1 - p), (x,), "dropout")
+
+    def _backward():
+        x.grad += out.grad * mask / (1 - p)
+
+    out._backward = _backward
+    return out
 
 
 class Tensor:
