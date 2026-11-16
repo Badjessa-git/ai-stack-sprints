@@ -27,6 +27,12 @@ def main():
     parser.add_argument("--prompt", default="To be")
     parser.add_argument("--chars", type=int, default=100)
     parser.add_argument("--temperature", type=float, default=0.8)
+    parser.add_argument(
+        "--greedy",
+        action="store_true",
+        help="always pick the most likely next char (same as train.py's "
+        "--sample). At this loss, sampling wanders; greedy reads coherent.",
+    )
     parser.add_argument("--d-model", type=int, default=16)
     parser.add_argument("--n-head", type=int, default=2)
     parser.add_argument("--n-layer", type=int, default=1)
@@ -71,7 +77,9 @@ def main():
         p.data = np.array(w) if args.engine == "numpy" else w
 
     idx = [stoi[c] for c in args.prompt]
-    gen = model.generate(idx, args.chars, temperature=args.temperature)
+    gen = model.generate(
+        idx, args.chars, temperature=args.temperature, greedy=args.greedy
+    )
     print("".join(itos[i] for i in gen))
 
 
