@@ -33,7 +33,7 @@ Prep: Raschka, *Build a Large Language Model (From Scratch)*, chapters 3
 (attention) and 4 (GPT architecture); chapter 5 (pretraining) for the
 training loop. Karpathy's "Let's build GPT" lecture covers the same
 ground in video form. 3Blue1Brown's attention video is the best 20-minute
-version of section 4 below.
+version of the attention walk in "The operations, defined" below.
 
 ## The plan
 
@@ -62,7 +62,8 @@ Work in order. Each step has tests; a step is done when its tests pass.
 lists of Values / single Values. Tests: `TestSoftmax`, `TestGelu`.
 
 **Step 2 — attention** (`CausalSelfAttention`). The heart of the sprint.
-Tests: `TestAttention`. Read section 4 before writing a line.
+Tests: `TestAttention`. Read the attention walk in "The operations,
+defined" before writing a line.
 
 **Step 3 — multi-head, LayerNorm, feed-forward** (`MultiHeadAttention`,
 `LayerNorm`, `FeedForward`). Tests: `TestMultiHead`, `TestLayerNorm`,
