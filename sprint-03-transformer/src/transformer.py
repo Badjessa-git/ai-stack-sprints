@@ -21,6 +21,7 @@ Conventions, same as Sprint 2:
   tests will catch it.
 """
 
+from functools import reduce
 import math
 import random
 
@@ -35,7 +36,10 @@ def softmax(xs):
     length, each between 0 and 1, summing to 1. Subtract the largest
     score first so exp() never overflows — the weights come out the same.
     """
-    raise NotImplementedError
+    max_value = max(xs, key=lambda item: item.data)
+    exps = [(v - max_value).exp() for v in xs]
+    sums_exp = sum(exps)
+    return [e / sums_exp for e in exps]
 
 
 def gelu(x):
@@ -44,18 +48,28 @@ def gelu(x):
     gelu(x) = 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3))).
     It behaves like ReLU for large |x| but lets a little signal through
     near zero, which is why transformers use it instead of ReLU.
+
+    0.044715 is magic number from the GELU paper (Hendrycks & Gimpel, 2016).
     """
-    raise NotImplementedError
+    return 0.5 * x * (1 + (math.sqrt(2 / math.pi) * (x + 0.044715 * x**3)).tanh())
 
 
 def _dot(a, b):
     """Dot product of two equal-length lists of Values -> one Value."""
-    raise NotImplementedError
+    if len(a) != len(b):
+        raise ValueError("Vectors must be the same length")
+    out = Value(0)
+    for i in range(len(a)):
+        out += a[i] * b[i]
+    return out
 
 
 def _vec_add(a, b):
     """Element-wise sum of two equal-length lists of Values."""
-    raise NotImplementedError
+    if len(a) != len(b):
+        raise ValueError("Vectors must be the same length")
+
+    return [x + y for x, y in zip(a, b)]
 
 
 class CausalSelfAttention(Module):
@@ -76,7 +90,35 @@ class CausalSelfAttention(Module):
         self.Wv = Layer(d_model, head_dim, nonlin=False)
 
     def __call__(self, x):
-        raise NotImplementedError
+        out = []
+        for i in range(len(x)):
+            # first the query
+            q = self.Wq(x[i])
+
+            l = []
+            c = []
+            # We want to understand the importance of the token
+            # we do so by looking at all the previous token before this one
+            # We do that for both the labels and the content
+
+            j = 0
+            while j <= i:
+                l.append(self.Wk(x[j]))
+                c.append(self.Wv(x[j]))
+                j += 1
+
+            scores = [_dot(q, l[s]) / math.sqrt(self.head_dim) for s in range(i + 1)]
+            weights = softmax(scores)
+
+            j = 0
+            out_i = [Value(0) for _ in range(self.head_dim)]
+            while j <= i:
+                scaled_vec = [weights[j] * v for v in c[j]]
+                out_i = _vec_add(scaled_vec, out_i)
+                j += 1
+            out.append(out_i)
+
+        return out
 
     def parameters(self):
         return self.Wq.parameters() + self.Wk.parameters() + self.Wv.parameters()
@@ -102,7 +144,17 @@ class MultiHeadAttention(Module):
         self.Wout = Layer(d_model, d_model, nonlin=False)
 
     def __call__(self, x):
-        raise NotImplementedError
+        outputs = []
+        for head in self.heads:
+            outputs.append(head(x))
+
+        out = []
+        for t in range(len(x)):
+            concat = []
+            for head_out in outputs:
+                concat.extend(head_out[t])
+            out.append(self.Wout(concat))
+        return out
 
     def parameters(self):
         ps = []
@@ -126,7 +178,11 @@ class LayerNorm(Module):
         self.beta = [Value(0.0) for _ in range(d_model)]
 
     def __call__(self, x):
-        raise NotImplementedError
+        mean = sum(x) / len(x)
+        var = sum((v - mean) ** 2 for v in x) / len(x)
+        std = (var + 1e-5) ** 0.5
+        out = [(v - mean) / std for v in x]
+        return [g * o + b for g, o, b in zip(self.gamma, out, self.beta)]
 
     def parameters(self):
         return self.gamma + self.beta
@@ -147,7 +203,9 @@ class FeedForward(Module):
         self.fc2 = Layer(self.hidden, d_model, nonlin=False)
 
     def __call__(self, x):
-        raise NotImplementedError
+        first_pass = self.fc1(x)
+        activation = [gelu(v) for v in first_pass]
+        return self.fc2(activation)
 
     def parameters(self):
         return self.fc1.parameters() + self.fc2.parameters()
@@ -170,7 +228,11 @@ class Block(Module):
         self.mlp = FeedForward(d_model)
 
     def __call__(self, x):
-        raise NotImplementedError
+        attn_out = self.attn([self.ln1(v) for v in x])
+        x = [_vec_add(v, a) for v, a in zip(x, attn_out)]
+        mlp_out = [self.mlp(self.ln2(v)) for v in x]
+        x = [_vec_add(v, m) for v, m in zip(x, mlp_out)]
+        return x
 
     def parameters(self):
         return (
@@ -225,7 +287,12 @@ class Transformer(Module):
 
     def __call__(self, idx):
         """idx: list of token ids, length T. Returns T logit vectors."""
-        raise NotImplementedError
+        x = [self.tok_emb(t) for t in idx]
+        x = [_vec_add(tok, self.pos_emb(i)) for i, tok in enumerate(x)]
+        for block in self.blocks:
+            x = block(x)
+        x = [self.ln_f(v) for v in x]
+        return [self.lm_head(v) for v in x]
 
     def loss(self, idx):
         """Mean cross-entropy: logits at position t predict token t+1.
@@ -233,12 +300,32 @@ class Transformer(Module):
         Returns one scalar Value. loss = mean over t of
         -log(softmax(logits[t])[idx[t+1]]).
         """
-        raise NotImplementedError
+        logits = self(idx)
+        losses = []
+        for t in range(len(idx) - 1):
+            probs = softmax(logits[t])
+            losses.append(-probs[idx[t + 1]].log())
+        return sum(losses) / len(losses)
 
     def generate(self, idx, n_new, temperature=1.0, greedy=False):
         """Extend idx by n_new tokens. Greedy takes the argmax; otherwise
         sample from softmax(logits / temperature). Returns the full list."""
-        raise NotImplementedError
+        for _ in range(n_new):
+            ctx = idx[-self.block_size :]
+            last = self(ctx)[-1]
+            if greedy:
+                nxt = max(range(len(last)), key=lambda i: last[i].data)
+            else:
+                probs = softmax([v / temperature for v in last])
+                r = random.random()
+                total = 0.0
+                for i, p in enumerate(probs):
+                    total += p.data
+                    if r < total:
+                        nxt = i
+                        break
+            idx = idx + [nxt]
+        return idx
 
     def parameters(self):
         ps = self.tok_emb.parameters() + self.pos_emb.parameters()

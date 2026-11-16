@@ -7,7 +7,6 @@ children, and a _backward closure with the local derivative. Everything
 else in the transformer imports from here unchanged.
 """
 
-from collections import defaultdict
 import math
 
 
@@ -210,6 +209,18 @@ class Value:
         ]
         return out
 
+    def exp(self):
+        y = math.exp(self.data)
+        out = Value(y, [self], "exp")
+        out._backward = lambda: [setattr(self, "grad", out.grad * math.exp(self.data))]
+        return out
+
+    def log(self):
+        y = math.log(self.data)
+        out = Value(y, [self], "log")
+        out._backward = lambda: [setattr(self, "grad", out.grad / self.data)]
+        return out
+
     # ---- the sweep ----
 
     def backward(self):
@@ -229,15 +240,16 @@ class Value:
         while worklist:
             node, processed = worklist.pop()
             if not processed:
+                if node in visited:
+                    continue
+                visited.add(node)
                 node.grad = 0
                 parents = node._prev
                 worklist.append((node, True))
                 if parents:
                     worklist.extend((x, False) for x in parents)
-
-            if processed and node not in visited:
+            else:
                 topo.append(node)
-                visited.add(node)
 
         # reverse order
         topo.reverse()

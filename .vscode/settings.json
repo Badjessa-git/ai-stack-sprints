@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
         "topo"
-    ]
+    ],
+    "python.REPL.enableREPLSmartSend": false
 }

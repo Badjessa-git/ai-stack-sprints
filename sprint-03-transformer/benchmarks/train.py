@@ -16,6 +16,7 @@ batch, so watch the trend over tens of steps, not step to step.
 """
 
 import argparse
+import json
 import os
 import random
 import sys
@@ -25,8 +26,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.transformer import Transformer  # noqa: E402
 
-CORPUS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "data", "corpus.txt")
+CORPUS = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "corpus.txt"
+)
 
 
 def main():
@@ -38,10 +40,18 @@ def main():
     parser.add_argument("--n-layer", type=int, default=1)
     parser.add_argument("--block-size", type=int, default=8)
     parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--sample", type=int, default=40,
-                        help="chars to generate at the end (each one costs "
-                             "a full forward pass — no KV cache yet, "
-                             "that is Sprint 6)")
+    parser.add_argument(
+        "--sample",
+        type=int,
+        default=40,
+        help="chars to generate at the end (each one costs "
+        "a full forward pass — no KV cache yet, "
+        "that is Sprint 6)",
+    )
+    parser.add_argument(
+        "--save", type=str, default=None, help="path to save the trained weights (JSON)"
+    )
+
     args = parser.parse_args()
 
     text = open(CORPUS).read()
@@ -52,31 +62,47 @@ def main():
     data = [stoi[c] for c in text]
 
     random.seed(args.seed)
-    model = Transformer(vocab_size, d_model=args.d_model, n_head=args.n_head,
-                        n_layer=args.n_layer, block_size=args.block_size)
-    print(f"vocab {vocab_size}, params {len(model.parameters())}, "
-          f"d_model {args.d_model}, block {args.block_size}, "
-          f"steps {args.steps}, lr {args.lr}")
+    model = Transformer(
+        vocab_size,
+        d_model=args.d_model,
+        n_head=args.n_head,
+        n_layer=args.n_layer,
+        block_size=args.block_size,
+    )
+    print(
+        f"vocab {vocab_size}, params {len(model.parameters())}, "
+        f"d_model {args.d_model}, block {args.block_size}, "
+        f"steps {args.steps}, lr {args.lr}"
+    )
 
     t0 = time.time()
     for step in range(args.steps):
         start = random.randint(0, len(data) - args.block_size - 1)
-        idx = data[start:start + args.block_size]
+        idx = data[start : start + args.block_size]
         loss = model.loss(idx)
         model.zero_grad()
         loss.backward()
         for p in model.parameters():
             p.data -= args.lr * p.grad
         if step % 10 == 0 or step == args.steps - 1:
-            print(f"step {step:4d}  loss {loss.data:.4f}  "
-                  f"({time.time() - t0:.0f}s)")
+            print(
+                f"step {step:4d}  loss {loss.data:.4f}  " f"({time.time() - t0:.0f}s)"
+            )
 
-    print(f"\n{time.time() - t0:.0f}s total, "
-          f"{(time.time() - t0) / args.steps:.2f}s/step")
+    if args.save:
+        with open(args.save, "w") as f:
+            json.dump([p.data for p in model.parameters()], f)
+        print(f"saved {len(model.parameters())} weights to {args.save}")
+
+    print(
+        f"\n{time.time() - t0:.0f}s total, "
+        f"{(time.time() - t0) / args.steps:.2f}s/step"
+    )
     print(f"\n--- sample (greedy, {args.sample} chars) ---")
     start = random.randint(0, len(data) - args.block_size - 1)
-    gen = model.generate(data[start:start + args.block_size], args.sample,
-                         greedy=True)
+    gen = model.generate(
+        data[start : start + args.block_size], args.sample, greedy=True
+    )
     print("".join(itos[i] for i in gen))
 
 
