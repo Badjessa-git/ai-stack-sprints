@@ -51,10 +51,23 @@ def main():
     parser.add_argument(
         "--save", type=str, default=None, help="path to save the trained weights (JSON)"
     )
+    parser.add_argument(
+        "--corpus",
+        type=str,
+        default=CORPUS,
+        help="training text file (default: data/corpus.txt)",
+    )
+    parser.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=0,
+        help="save weights every N steps (0 = only at the end, "
+        "via --save)",
+    )
 
     args = parser.parse_args()
 
-    text = open(CORPUS).read()
+    text = open(args.corpus).read()
     chars = sorted(set(text))
     vocab_size = len(chars)
     stoi = {c: i for i, c in enumerate(chars)}
@@ -84,6 +97,14 @@ def main():
         loss.backward()
         for p in model.parameters():
             p.data -= args.lr * p.grad
+        if (
+            args.save
+            and args.checkpoint_every
+            and (step + 1) % args.checkpoint_every == 0
+        ):
+            with open(args.save, "w") as f:
+                json.dump([p.data for p in model.parameters()], f)
+            print(f"checkpoint step {step + 1} -> {args.save}")
         if step % 10 == 0 or step == args.steps - 1:
             print(
                 f"step {step:4d}  loss {loss.data:.4f}  " f"({time.time() - t0:.0f}s)"
