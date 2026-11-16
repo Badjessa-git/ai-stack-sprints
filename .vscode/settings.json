@@ -2,5 +2,8 @@
     "cSpell.words": [
         "topo"
     ],
-    "python.REPL.enableREPLSmartSend": false
+    "python.REPL.enableREPLSmartSend": false,
+    "python.analysis.extraPaths": [
+        "./sprint-03-transformer/src"
+    ]
 }

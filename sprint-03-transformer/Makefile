@@ -13,16 +13,24 @@ benchmark:
 train:
 	python3 benchmarks/train.py $(ARGS)
 
-# Generate text from the trained NumPy model (d128, 2 layers, block 64,
-# combined corpus). Just give it the prompt text:
+# Generate text from a trained NumPy model. Just give it the prompt text,
+# and optionally which weights file (and its architecture) to use:
 #   make generate TEXT="To be, or not to be"
-#   make generate TEXT="Once upon a time" CHARS=300 TEMP=1.0
+#   make generate TEXT="Once upon a time" WEIGHTS=weights-numpy-d64.json DMODEL=64 BLOCK=32
 CHARS ?= 200
 TEMP ?= 0.8
+WEIGHTS ?= weights-numpy-d128.json
+DMODEL ?= 128
+NLAYER ?= 2
+BLOCK ?= 64
+CORPUS ?= data/corpus-combined.txt
+GREEDY ?=
 generate:
 	@if [ -z "$(TEXT)" ]; then echo 'Usage: make generate TEXT="your prompt here"'; exit 1; fi
 	python3 benchmarks/generate.py --engine numpy \
-		--load weights-numpy-d128.json \
-		--d-model 128 --n-layer 2 --block-size 64 \
-		--corpus data/corpus-combined.txt \
-		--prompt "$(TEXT)" --chars $(CHARS) --temperature $(TEMP)
+		--load $(WEIGHTS) \
+		--d-model $(DMODEL) --n-layer $(NLAYER) --block-size $(BLOCK) \
+		--corpus $(CORPUS) \
+		--prompt "$(TEXT)" --chars $(CHARS) --temperature $(TEMP) $(GREEDY)
+
+
