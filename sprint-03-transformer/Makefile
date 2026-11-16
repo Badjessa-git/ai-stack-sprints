@@ -8,6 +8,16 @@ test:
 benchmark:
 	python3 benchmarks/bench.py
 
+# Scalar vs NumPy on the same config: time/step, loss, speedup
+bench-engines:
+	python3 benchmarks/bench_engines.py
+
+# Dropout 0 vs 0.1: train loss and held-out val loss. Needs dropout()
+# implemented first (tests/test_numpy_dropout.py) — until then it
+# reports "not implemented" for the dropout run.
+bench-dropout:
+	python3 benchmarks/bench_dropout.py $(ARGS)
+
 # Short training run on the corpus (run after tests pass)
 # e.g. make train ARGS="--steps 300 --lr 0.05"
 train:

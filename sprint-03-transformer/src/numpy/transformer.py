@@ -32,7 +32,7 @@ import random
 
 import numpy as np
 
-from src.numpy.engine import Tensor, concat
+from src.numpy.engine import Tensor, concat, dropout
 from src.numpy.nn import Linear, Module
 
 
@@ -159,18 +159,32 @@ class Block(Module):
 
     x -> x + attn(LN(x)), then x -> x + mlp(LN(x)). x is a Tensor of
     shape (T, d_model); the return is the same shape.
+
+    dropout: fraction of activations randomly zeroed during training
+    (0.0 = no dropout — the calls below are skipped entirely, so a
+    model with dropout=0 never touches the dropout function, which is
+    a stub until you implement it). Applied to the attention output and
+    the feed-forward output, before each residual add. training=False
+    (generation) never drops anything.
     """
 
-    def __init__(self, d_model, n_head):
+    def __init__(self, d_model, n_head, dropout=0.0):
         self.d_model = d_model
+        self.dropout = dropout
         self.ln1 = LayerNorm(d_model)
         self.attn = MultiHeadAttention(d_model, n_head)
         self.ln2 = LayerNorm(d_model)
         self.mlp = FeedForward(d_model)
 
-    def __call__(self, x):
-        x = x + self.attn(self.ln1(x))
-        x = x + self.mlp(self.ln2(x))
+    def __call__(self, x, training=True):
+        attn_out = self.attn(self.ln1(x))
+        if training and self.dropout > 0:
+            attn_out = dropout(attn_out, self.dropout, training=True)
+        x = x + attn_out
+        mlp_out = self.mlp(self.ln2(x))
+        if training and self.dropout > 0:
+            mlp_out = dropout(mlp_out, self.dropout, training=True)
+        x = x + mlp_out
         return x
 
     def parameters(self):
@@ -215,24 +229,30 @@ class Transformer(Module):
     blocks stacked. block_size: longest context the model ever sees.
     """
 
-    def __init__(self, vocab_size, d_model=16, n_head=2, n_layer=1, block_size=8):
+    def __init__(self, vocab_size, d_model=16, n_head=2, n_layer=1, block_size=8,
+                 dropout=0.0):
         self.vocab_size = vocab_size
         self.d_model = d_model
         self.n_head = n_head
         self.n_layer = n_layer
         self.block_size = block_size
+        self.dropout = dropout
         self.tok_emb = Embedding(vocab_size, d_model)
         self.pos_emb = Embedding(block_size, d_model)
-        self.blocks = [Block(d_model, n_head) for _ in range(n_layer)]
+        self.blocks = [Block(d_model, n_head, dropout=dropout) for _ in range(n_layer)]
         self.ln_f = LayerNorm(d_model)
         self.lm_head = Linear(d_model, vocab_size)
 
-    def __call__(self, idx):
-        """idx: list of token ids, length T. Returns Tensor (T, vocab)."""
+    def __call__(self, idx, training=True):
+        """idx: list of token ids, length T. Returns Tensor (T, vocab).
+
+        training=True (the default, used by loss()) turns dropout on;
+        training=False (used by generate()) turns it off.
+        """
         T = len(idx)
         x = self.tok_emb(idx) + self.pos_emb(list(range(T)))
         for block in self.blocks:
-            x = block(x)
+            x = block(x, training=training)
         x = self.ln_f(x)
         return self.lm_head(x)
 
@@ -240,9 +260,9 @@ class Transformer(Module):
         """Mean cross-entropy: logits at position t predict token t+1.
 
         Returns one scalar Tensor. loss = mean over t of
-        -log(softmax(logits[t])[idx[t+1]]).
+        -log(softmax(logits[t])[idx[t+1]]). Dropout is on (training).
         """
-        logits = self(idx)
+        logits = self(idx, training=True)
         probs = softmax(logits[:-1], axis=1)
         rows = np.arange(len(idx) - 1)
         targets = np.array(idx[1:], dtype=np.int64)
@@ -254,7 +274,7 @@ class Transformer(Module):
         sample from softmax(logits / temperature). Returns the full list."""
         for _ in range(n_new):
             ctx = idx[-self.block_size :]
-            last = self(ctx)[-1]
+            last = self(ctx, training=False)[-1]
             if greedy:
                 nxt = int(np.argmax(last.data))
             else:

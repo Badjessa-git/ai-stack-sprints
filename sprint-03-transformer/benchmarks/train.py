@@ -114,6 +114,15 @@ def main():
         help="save weights every N steps (0 = only at the end, "
         "via --save)",
     )
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=0.0,
+        help="fraction of activations randomly zeroed during training "
+        "(NumPy engine only; 0.0 = no dropout, the default). The "
+        "dropout function is a stub until you implement it — with "
+        "0.0 it is never called, so training is unaffected.",
+    )
 
     args = parser.parse_args()
 
@@ -134,13 +143,23 @@ def main():
         print(f"epochs {args.epochs} -> {args.steps} steps")
 
     random.seed(args.seed)
-    model = Transformer(
-        vocab_size,
-        d_model=args.d_model,
-        n_head=args.n_head,
-        n_layer=args.n_layer,
-        block_size=args.block_size,
-    )
+    if args.engine == "numpy":
+        model = Transformer(
+            vocab_size,
+            d_model=args.d_model,
+            n_head=args.n_head,
+            n_layer=args.n_layer,
+            block_size=args.block_size,
+            dropout=args.dropout,
+        )
+    else:
+        model = Transformer(
+            vocab_size,
+            d_model=args.d_model,
+            n_head=args.n_head,
+            n_layer=args.n_layer,
+            block_size=args.block_size,
+        )
     if args.load:
         import numpy as np
 

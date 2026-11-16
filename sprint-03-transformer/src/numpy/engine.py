@@ -75,6 +75,33 @@ def concat(tensors, axis=0):
     return out
 
 
+def dropout(x, p=0.1, training=True):
+    """Dropout: randomly zero a fraction `p` of the entries, training only.
+
+    YOUR IMPLEMENTATION. The contract (see tests/test_numpy_dropout.py):
+    - If not training, or p == 0: return x unchanged (no mask, no scale).
+    - If training and p > 0: build a mask the same shape as x.data,
+      1 with probability (1 - p) and 0 with probability p. Return a new
+      Tensor whose data is x.data * mask / (1 - p) — the / (1 - p) keeps
+      the expected value the same, so the next layer sees the same
+      average magnitude it saw without dropout.
+    - Backward: the gradient flows through the same mask and the same
+      1 / (1 - p) scale, so dropped entries get zero gradient and kept
+      entries get the scaled gradient. Record x as the parent (the mask
+      itself is not a Tensor — it is a plain array, not part of the graph).
+
+    The Transformer only calls this when the dropout rate is > 0 (see
+    src/numpy/transformer.py Block), so a model with dropout=0 never
+    reaches this function — it is ignored until you set a rate.
+    """
+    if not training or p == 0:
+        return x
+    raise NotImplementedError(
+        "dropout is yours to implement: mask, scale by 1/(1-p), backward "
+        "through the mask. See tests/test_numpy_dropout.py for the contract."
+    )
+
+
 class Tensor:
     """One array in a computational graph.
 
