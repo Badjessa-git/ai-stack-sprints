@@ -27,6 +27,22 @@ CORPUS = os.path.join(
 )
 
 
+def _decode_lenient(tok, token_ids):
+    """Decode token ids to text, replacing invalid UTF-8 bytes.
+
+    The tokenizer's decode() is strict (exact roundtrip for encode()
+    output), but model-generated ids can produce byte sequences that
+    are not valid UTF-8. For display, replace those bytes.
+    """
+    try:
+        return tok.decode(token_ids)
+    except UnicodeDecodeError:
+        byte_list = []
+        for tid in token_ids:
+            byte_list.extend(tok._BPETokenizer__decode_single(tid))
+        return bytes(byte_list).decode("utf-8", errors="replace")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--load", required=True)
@@ -56,6 +72,20 @@ def main():
         default=CORPUS,
         help="training text file (must match the training run's corpus)",
     )
+    parser.add_argument(
+        "--tokenizer",
+        choices=["char", "bpe"],
+        default="char",
+        help="must match the training run: char = one token per "
+        "character; bpe = Sprint 1 BPE tokens (needs --merges).",
+    )
+    parser.add_argument(
+        "--merges",
+        type=str,
+        default="bpe-merges.json",
+        help="BPE merges file saved by train.py (only with "
+        "--tokenizer bpe).",
+    )
     args = parser.parse_args()
 
     if args.engine == "numpy":
@@ -64,13 +94,35 @@ def main():
         from src.scalar.transformer import Transformer
 
     text = open(args.corpus).read()
-    chars = sorted(set(text))
-    stoi = {c: i for i, c in enumerate(chars)}
-    itos = {i: c for c, i in stoi.items()}
+    tok = None
+    if args.tokenizer == "bpe":
+        # Rebuild the Sprint 1 tokenizer from the saved merges. The
+        # merges dict is (left, right) -> new_id; the private lookup
+        # table is its inverse, rebuilt here so decode() works.
+        bpe_src = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "sprint-01-bpe-tokenizer",
+            "src",
+        )
+        sys.path.insert(0, bpe_src)
+        from tokenizer import BPETokenizer
+
+        saved = json.load(open(args.merges))
+        tok = BPETokenizer()
+        tok.merges = {(l, r): nid for l, r, nid in saved["merges"]}
+        tok._BPETokenizer__byte_lookup_table = {
+            nid: (l, r) for l, r, nid in saved["merges"]
+        }
+        vocab_size = saved["vocab_size"]
+    else:
+        chars = sorted(set(text))
+        vocab_size = len(chars)
+        stoi = {c: i for i, c in enumerate(chars)}
+        itos = {i: c for c, i in stoi.items()}
 
     random.seed(args.seed)
     model = Transformer(
-        len(chars),
+        vocab_size,
         d_model=args.d_model,
         n_head=args.n_head,
         n_layer=args.n_layer,
@@ -88,11 +140,14 @@ def main():
         )
         p.data = arr
 
-    idx = [stoi[c] for c in args.prompt]
+    idx = tok.encode(args.prompt) if args.tokenizer == "bpe" else [stoi[c] for c in args.prompt]
     gen = model.generate(
         idx, args.chars, temperature=args.temperature, greedy=args.greedy
     )
-    print("".join(itos[i] for i in gen))
+    if args.tokenizer == "bpe":
+        print(_decode_lenient(tok, gen))
+    else:
+        print("".join(itos[i] for i in gen))
 
 
 if __name__ == "__main__":

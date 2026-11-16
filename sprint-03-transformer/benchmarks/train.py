@@ -46,6 +46,22 @@ CORPUS = os.path.join(
 )
 
 
+def _decode_lenient(tok, token_ids):
+    """Decode token ids to text, replacing invalid UTF-8 bytes.
+
+    The tokenizer's decode() is strict (exact roundtrip for encode()
+    output), but model-generated ids can produce byte sequences that
+    are not valid UTF-8. For display, replace those bytes.
+    """
+    try:
+        return tok.decode(token_ids)
+    except UnicodeDecodeError:
+        byte_list = []
+        for tid in token_ids:
+            byte_list.extend(tok._BPETokenizer__decode_single(tid))
+        return bytes(byte_list).decode("utf-8", errors="replace")
+
+
 def _save_weights(model, path):
     """Save parameters as JSON. A NumPy array becomes a nested list; a
     plain number stays a number. generate.py loads it back with the
@@ -114,6 +130,28 @@ def main():
         help="training text file (default: data/corpus.txt)",
     )
     parser.add_argument(
+        "--tokenizer",
+        choices=["char", "bpe"],
+        default="char",
+        help="char: one token per character (vocab = distinct chars, "
+        "the Sprint 3 default). bpe: use the Sprint 1 BPE tokenizer "
+        "(vocab 512) — each token is a subword, so block_size tokens "
+        "cover ~5x more text and the model learns words, not spelling.",
+    )
+    parser.add_argument(
+        "--bpe-vocab",
+        type=int,
+        default=512,
+        help="BPE vocab size (only with --tokenizer bpe).",
+    )
+    parser.add_argument(
+        "--merges-out",
+        type=str,
+        default="bpe-merges.json",
+        help="where to save the learned BPE merges (only with "
+        "--tokenizer bpe); generate.py loads them with --merges.",
+    )
+    parser.add_argument(
         "--checkpoint-every",
         type=int,
         default=0,
@@ -138,11 +176,61 @@ def main():
         from src.scalar.transformer import Transformer
 
     text = open(args.corpus).read()
-    chars = sorted(set(text))
-    vocab_size = len(chars)
-    stoi = {c: i for i, c in enumerate(chars)}
-    itos = {i: c for c, i in stoi.items()}
-    data = [stoi[c] for c in text]
+    if args.tokenizer == "bpe":
+        # Sprint 1 BPE: train merges on a 200k-char sample (enough to
+        # learn the common subwords; ~12s), then encode the corpus.
+        # The encoded ids are cached next to the corpus file, so repeat
+        # runs skip the encode (~45s per 1M chars).
+        bpe_src = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "sprint-01-bpe-tokenizer",
+            "src",
+        )
+        sys.path.insert(0, bpe_src)
+        from tokenizer import BPETokenizer
+
+        cache_path = (
+            os.path.splitext(args.corpus)[0]
+            + f"-bpe{args.bpe_vocab}.tokens.json"
+        )
+        if os.path.exists(cache_path):
+            cached = json.load(open(cache_path))
+            tok = BPETokenizer()
+            tok.merges = {(l, r): nid for l, r, nid in cached["merges"]}
+            tok._BPETokenizer__byte_lookup_table = {
+                nid: (l, r) for l, r, nid in cached["merges"]
+            }
+            data = cached["ids"]
+            vocab_size = cached["vocab_size"]
+            print(f"tokenizer bpe: loaded {len(data)} cached tokens from {cache_path}")
+        else:
+            tok = BPETokenizer()
+            tok.train(text[:200_000], vocab_size=args.bpe_vocab)
+            data = tok.encode(text)
+            vocab_size = args.bpe_vocab
+            merges = [[l, r, nid] for (l, r), nid in tok.merges.items()]
+            with open(cache_path, "w") as f:
+                json.dump(
+                    {"vocab_size": vocab_size, "merges": merges, "ids": data}, f
+                )
+            print(
+                f"tokenizer bpe, vocab {vocab_size}, "
+                f"{len(text)} chars -> {len(data)} tokens "
+                f"({len(data) / len(text):.2%} token-to-byte), "
+                f"cached to {cache_path}"
+            )
+        itos = None  # decode via the tokenizer, not a table
+        stoi = None
+        merges = [[l, r, nid] for (l, r), nid in tok.merges.items()]
+        with open(args.merges_out, "w") as f:
+            json.dump({"vocab_size": vocab_size, "merges": merges}, f)
+    else:
+        chars = sorted(set(text))
+        vocab_size = len(chars)
+        stoi = {c: i for i, c in enumerate(chars)}
+        itos = {i: c for c, i in stoi.items()}
+        data = [stoi[c] for c in text]
+        tok = None
 
     if args.epochs is not None:
         args.steps = int(args.epochs * len(data) / args.block_size)
@@ -247,12 +335,18 @@ def main():
         f"\n{time.time() - t0:.0f}s total, "
         f"{(time.time() - t0) / args.steps:.2f}s/step"
     )
-    print(f"\n--- sample (greedy, {args.sample} chars) ---")
+    print(
+        f"\n--- sample (greedy, {args.sample} "
+        f"{'tokens' if args.tokenizer == 'bpe' else 'chars'}) ---"
+    )
     start = random.randint(0, len(data) - args.block_size - 1)
     gen = model.generate(
         data[start : start + args.block_size], args.sample, greedy=True
     )
-    print("".join(itos[i] for i in gen))
+    if args.tokenizer == "bpe":
+        print(_decode_lenient(tok, gen))
+    else:
+        print("".join(itos[i] for i in gen))
 
 
 if __name__ == "__main__":
