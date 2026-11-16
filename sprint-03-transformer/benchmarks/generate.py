@@ -3,6 +3,12 @@ import json
 import os
 import random
 import sys
+import warnings
+
+# Silence the Mac/Accelerate RuntimeWarnings (divide by zero / overflow
+# in matmul) — a known noise quirk on Apple Silicon, not a code bug
+# (the same run on Linux prints none). Real errors still raise.
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 # See benchmarks/train.py: keep BLAS to one thread. On Apple Silicon,
 # NumPy's Accelerate backend can segfault on small threaded matrix ops.

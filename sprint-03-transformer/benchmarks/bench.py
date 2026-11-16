@@ -17,6 +17,12 @@ import os
 import random
 import sys
 import time
+import warnings
+
+# Silence the Mac/Accelerate RuntimeWarnings (divide by zero / overflow
+# in matmul) — a known noise quirk on Apple Silicon, not a code bug
+# (the same run on Linux prints none). Real errors still raise.
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
