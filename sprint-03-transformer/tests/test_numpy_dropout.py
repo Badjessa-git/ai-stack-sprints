@@ -65,8 +65,10 @@ class TestDropoutContract(unittest.TestCase):
         out = dropout(x, p=0.5, training=True)
         loss = (out * out).sum()
         loss.backward()
-        # grad is 2 * out (d/dx of out^2), masked the same way
-        expected = 2 * out.data
+        # dloss/dx = 2*out * mask/(1-p): the square contributes 2*out,
+        # and the dropout backward contributes mask/(1-p). Where the
+        # mask is 0 the grad is 0; where it is 1 it is 2*out/(1-p).
+        expected = np.where(out.data == 0.0, 0.0, 2 * out.data / 0.5)
         np.testing.assert_allclose(x.grad, expected)
 
 
