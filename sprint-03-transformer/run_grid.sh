@@ -1,14 +1,14 @@
 #!/bin/bash
-# Batch grid: config permutations on WikiText-103 50M (BPE, Adam, 1 epoch).
-# Run from sprint-03-transformer/ once data/wiki103-50m.txt is on the branch:
+# Batch grid: config permutations on WikiText-103 100M (BPE, Adam, 1 epoch).
+# Run from sprint-03-transformer/ once data/wiki103-100m.txt is on the branch:
 #   bash run_grid.sh
 # Each run launches in the background with nohup. Check with:
 #   ps aux | grep benchmarks/train.py
-# Longest run is the d1024 (~39 hrs); everything else finishes sooner.
+# Longest run is the d1024 (~78 hrs); everything else finishes sooner.
 set -e
 cd "$(dirname "$0")"
 
-CORPUS=data/wiki103-50m.txt
+CORPUS=data/wiki103-100m.txt
 MERGES=bpe-merges-wiki103.json
 
 if [ ! -f "$CORPUS" ]; then
