@@ -8,7 +8,7 @@
 set -e
 cd "$(dirname "$0")"
 
-CORPUS=data/wiki103-50m.txt
+CORPUS=data/wiki103-100m.txt
 MERGES=bpe-merges-wiki103.json
 
 if [ ! -f "$CORPUS" ]; then
