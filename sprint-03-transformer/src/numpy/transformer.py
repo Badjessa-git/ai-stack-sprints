@@ -69,10 +69,6 @@ class CausalSelfAttention(Module):
         self.Wq = Linear(d_model, head_dim)
         self.Wk = Linear(d_model, head_dim)
         self.Wv = Linear(d_model, head_dim)
-        # Last attention weights from the most recent forward pass,
-        # a (T, T) numpy array. Recorded for visualization only; it
-        # does not affect the computation.
-        self.last_weights = None
 
     def __call__(self, x):
         T = x.data.shape[0]
@@ -84,7 +80,6 @@ class CausalSelfAttention(Module):
         # them weight 0. The diagonal and below stay 0 (unchanged).
         mask = np.triu(np.full((T, T), -1e9), k=1)
         weights = softmax(scores + mask, axis=1)
-        self.last_weights = weights.data
         return weights @ v
 
     def parameters(self):
