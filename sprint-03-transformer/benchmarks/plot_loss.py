@@ -69,11 +69,15 @@ def main():
     ax.grid(True, alpha=0.3)
 
     lines = {}
+    labels = {}
     for path in args.logs:
         label = os.path.basename(path).replace("train-", "").replace(".log", "")
         (raw,) = ax.plot([], [], alpha=0.25, label=f"{label} (raw)")
         (avg,) = ax.plot([], [], linewidth=2, label=f"{label} (20-step avg)")
         lines[path] = (raw, avg)
+        # Text label showing the latest averaged loss, placed at the
+        # end of the curve; updated every refresh.
+        labels[path] = ax.text(0, 0, "", fontsize=9, fontweight="bold")
     ax.legend(loc="upper right")
 
     print("plotting", ", ".join(args.logs), "— close the window to stop")
@@ -84,7 +88,13 @@ def main():
                 if not steps:
                     continue
                 raw.set_data(steps, losses)
-                avg.set_data(steps, moving_average(losses))
+                avgs = moving_average(losses)
+                avg.set_data(steps, avgs)
+                # Label the curve's current value at its latest point.
+                color = avg.get_color()
+                labels[path].set_position((steps[-1], avgs[-1]))
+                labels[path].set_text(f"{avgs[-1]:.3f}")
+                labels[path].set_color(color)
             ax.relim()
             ax.autoscale_view()
             fig.canvas.draw()
