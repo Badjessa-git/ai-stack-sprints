@@ -6,6 +6,9 @@ trains on a different random batch), so the plot shows the raw loss
 faint and a 20-step moving average bold — the same last-20 average
 used to read a run's final loss.
 
+The legend shows each run's current 20-step averaged loss next to its
+name, updating live as the run progresses.
+
 Usage:
     python3 benchmarks/plot_loss.py train-d256-n2-bpe.log
     python3 benchmarks/plot_loss.py train-d256-n2-bpe.log train-d256-n2-bpe-wikitext.log
@@ -68,16 +71,18 @@ def main():
     ax.set_ylabel("loss")
     ax.grid(True, alpha=0.3)
 
+    # One legend entry per run (the bold 20-step average line). The raw
+    # line is plotted faint with no legend entry, to keep the legend
+    # readable when many runs are compared. The entry's label carries
+    # the run's current averaged loss and is updated every refresh.
     lines = {}
-    labels = {}
+    names = {}
     for path in args.logs:
         label = os.path.basename(path).replace("train-", "").replace(".log", "")
-        (raw,) = ax.plot([], [], alpha=0.25, label=f"{label} (raw)")
-        (avg,) = ax.plot([], [], linewidth=2, label=f"{label} (20-step avg)")
+        (raw,) = ax.plot([], [], alpha=0.25, label="_nolegend_")
+        (avg,) = ax.plot([], [], linewidth=2, label=label)
         lines[path] = (raw, avg)
-        # Text label showing the latest averaged loss, placed at the
-        # end of the curve; updated every refresh.
-        labels[path] = ax.text(0, 0, "", fontsize=9, fontweight="bold")
+        names[path] = label
     ax.legend(loc="upper right")
 
     print("plotting", ", ".join(args.logs), "— close the window to stop")
@@ -90,11 +95,9 @@ def main():
                 raw.set_data(steps, losses)
                 avgs = moving_average(losses)
                 avg.set_data(steps, avgs)
-                # Label the curve's current value at its latest point.
-                color = avg.get_color()
-                labels[path].set_position((steps[-1], avgs[-1]))
-                labels[path].set_text(f"{avgs[-1]:.3f}")
-                labels[path].set_color(color)
+                # Update the legend entry with the current averaged loss.
+                avg.set_label(f"{names[path]} — {avgs[-1]:.3f}")
+            ax.legend(loc="upper right")
             ax.relim()
             ax.autoscale_view()
             fig.canvas.draw()
