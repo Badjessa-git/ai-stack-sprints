@@ -49,6 +49,7 @@ from src.numpy.transformer import Transformer
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMBINED = os.path.join(ROOT, "data", "corpus-combined.txt")
 WIKITEXT = os.path.join(ROOT, "data", "wiki.train.tokens")
+WIKI103 = os.path.join(ROOT, "data", "wiki103-100m.txt")
 
 PROMPT_COMBINED = "To be, or not to be"
 PROMPT_WIKITEXT = "Albert Einstein was a"
@@ -79,17 +80,25 @@ def infer_config(path):
     d_model = int(m.group(1))
     n = re.search(r"-n(\d+)", name)
     n_layer = int(n.group(1)) if n else 2
+    b = re.search(r"-b(\d+)", name)
+    block_size = int(b.group(1)) if b else 64
     tokenizer = "bpe" if "bpe" in name else "char"
-    is_wiki = "wikitext" in name
-    corpus = WIKITEXT if is_wiki else COMBINED
-    merges = (
-        "bpe-merges-wikitext.json" if is_wiki else "bpe-merges.json"
-    )
+    is_wiki103 = "wiki103" in name
+    is_wiki = is_wiki103 or "wikitext" in name
+    if is_wiki103:
+        corpus = WIKI103
+        merges = "bpe-merges-wiki103.json"
+    elif is_wiki:
+        corpus = WIKITEXT
+        merges = "bpe-merges-wikitext.json"
+    else:
+        corpus = COMBINED
+        merges = "bpe-merges.json"
     return {
         "d_model": d_model,
         "n_layer": n_layer,
         "n_head": 2,
-        "block_size": 64,
+        "block_size": block_size,
         "tokenizer": tokenizer,
         "corpus": corpus,
         "merges": merges,
