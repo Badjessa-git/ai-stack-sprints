@@ -61,7 +61,7 @@ GPT-2's position table would make the three rows differ.
 ## Run it
 
 ```bash
-make test           # 30 tests on a tiny random Llama (no download)
+make test           # 26 tests on a tiny random Llama (no download)
 make download       # ~540 MB into data/smollm-135m/ (gitignored)
 make test-real      # 4 acceptance tests on the real model
 make compare        # GPT-2 vs SmolLM (needs Sprint 4's download too)
