@@ -2,3 +2,14 @@ __pycache__/
 *.pyc
 .venv/
 .DS_Store
+
+# Token caches: rebuilt by the training scripts, some over GitHub's 100 MB limit.
+# The small *.meta.json files (merges + pattern) are kept.
+sprint-03-transformer/data/*.tokens.npy
+sprint-03-transformer/data/*.tokens.json
+sprint-03-transformer/data/*.parquet
+
+# Model weights: kept locally only. Runs are a learning record, not models to
+# share; logs, configs, merges and reports are committed instead.
+sprint-03-transformer/runs/**/weights*.npz
+sprint-03-transformer/runs/legacy/weights-*.json

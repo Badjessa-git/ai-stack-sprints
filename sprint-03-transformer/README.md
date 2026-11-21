@@ -276,11 +276,73 @@ The post may only claim what was discussed here.
 - **Subword tokenizers vs characters.** Sprint 1's BPE turns text into
   ~500-token vocabularies; here each character is a token (vocab 58).
   Characters make the sprint small enough to train by hand, and make the
-  sample look worse than a BPE model would.
+  sample look worse than a BPE model would. *(Updated: the scaled-up runs
+  below do use BPE: Part 1 at 512 in v1/v2, Part 3 regex at 512 and 4096
+  in v3. GPT-2 uses the Part 3 algorithm at 50,257.)*
 - **Scale.** 5,354 parameters, 1 layer, 20,000 characters. GPT-2 small
   is 124M parameters and 40GB of text. The architecture is the same;
   the behavior at this scale is not evidence about the behavior at
   that scale.
+
+## Scaling up: WikiText-103 (v1 → v2 → v3)
+
+The core (Steps 0–6) is the 5,354-parameter Shakespeare model. After it,
+the NumPy engine trained much bigger models on the first 100M characters of
+WikiText-103. Each round leaves the earlier code untouched, so its logs
+stay comparable:
+
+| Version | Code | What changed | Runs |
+|---------|------|--------------|------|
+| v1 | `benchmarks/train.py`, `src/numpy/` | First scale-up: BPE 512, Adam, d128 to d1024 | `runs/legacy/` |
+| v2 | `benchmarks/train_v2.py`, `src/numpy_v2/` | Five fixes from the Nov 19 review: init, real batching, LR schedule, held-out eval in bits/byte, float32 | `runs/v2/` |
+| v3 | `benchmarks/train_v3.py` | v2 plus `--tokenizer bpe-regex` (Sprint 1 Part 3) | `runs/v3/` |
+
+**Compare runs on `val_bpb`** (bits per byte of held-out text), never
+`val_loss`. Loss is per token, so it changes when the tokenizer changes;
+bits per byte doesn't.
+
+Results so far (one epoch, batch 16, block 64, lr 1e-3; full table in
+`reports/2026-11-20-v2-grid.md`):
+
+| Model | Params | v1 bpb | v2 bpb |
+|-------|--------|--------|--------|
+| d256-n2, no dropout | 1.9M | 2.193 | 1.778 |
+| d256-n4 | 3.4M | 2.710 | 1.711 |
+| d512-n2, no dropout | 6.9M | — | 1.677 |
+| d1024-n2 | 26.3M | 2.756 | 1.742 |
+| **d512-n4** | 13.2M | — | **1.621** |
+
+What v2 showed: every v2 model beats every v1 model; depth beats width
+(d256-n4 beats d1024-n2); dropout hurts at one epoch; lr between 5e-4 and
+3e-3 barely matters. v3 (Part 1 vs Part 3 tokenizer at 512, plus vocab
+4096, plus a second seed to measure noise) is in progress.
+
+Each run lives in `runs/<version>/<run-name>/`: `config.json` (every flag),
+`train.log`, `weights.npz`, `merges.json`.
+
+```bash
+bash run_grid_v2.sh                      # launch a grid in the background
+bash watch_v2.sh                         # progress + latest val_bpb per run
+python3 benchmarks/test_models_v2.py --save reports/<date>-v2.md
+bash run_grid_v3.sh && bash watch_v3.sh  # v3 grid
+python3 benchmarks/test_models_v3.py     # v2 and v3 runs in one table
+```
+
+The data file isn't in git: see `download_wiki103.py`. Token caches are
+written next to it in `data/` on first use. Some are over 100 MB; don't
+commit them.
+
+## What AI wrote
+
+- **Scaffold:** this README, the tests, `benchmarks/` (every training,
+  grid, watch and test-model script), `POST.md` outline.
+- **The NumPy engine:** `src/numpy/` and `src/numpy_v2/` (the Tensor
+  autograd and the NumPy model) were scaffolded so long runs were
+  possible. The optional Sprint 3.5 rebuilds the Tensor backward by hand.
+- **v2 fixes:** the five fixes in `src/numpy_v2/` and `train_v2.py`.
+- **Hand-written:** `src/scalar/transformer.py` (every op, attention, the
+  block, the model, the loss, generation) and the Step 0 engine changes in
+  `src/scalar/engine.py`.
 
 ## Files
 

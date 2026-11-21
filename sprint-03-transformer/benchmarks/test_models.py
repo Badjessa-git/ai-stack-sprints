@@ -45,8 +45,8 @@ COMBINED = os.path.join(ROOT, "data", "corpus-combined.txt")
 WIKITEXT = os.path.join(ROOT, "data", "wiki.train.tokens")
 WIKI103 = os.path.join(ROOT, "data", "wiki103-100m.txt")
 
-PROMPT_COMBINED = "To be, or not to be"
-PROMPT_WIKITEXT = "Albert Einstein was a"
+PROMPT_COMBINED = "To be, or not to be "
+PROMPT_WIKITEXT = "Albert Einstein was a "
 
 LOSS_RE = re.compile(r"step\s+(\d+)\s+loss\s+([0-9.]+)")
 
@@ -113,7 +113,9 @@ def load_model(cfg, weights_path):
     tok = None
     if cfg["tokenizer"] == "bpe":
         bpe_src = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
             "sprint-01-bpe-tokenizer",
             "src",
         )
@@ -147,15 +149,13 @@ def load_model(cfg, weights_path):
     weights = json.load(open(weights_path))
     if len(weights) != len(model.parameters()):
         raise ValueError(
-            f"weight count {len(weights)} != model params "
-            f"{len(model.parameters())}"
+            f"weight count {len(weights)} != model params " f"{len(model.parameters())}"
         )
     for p, w in zip(model.parameters(), weights):
         arr = np.array(w)
         if np.shape(arr) != np.shape(p.data):
             raise ValueError(
-                f"weight shape {np.shape(arr)} != model shape "
-                f"{np.shape(p.data)}"
+                f"weight shape {np.shape(arr)} != model shape " f"{np.shape(p.data)}"
             )
         p.data = arr
     return model, encode, decode
@@ -217,9 +217,7 @@ def parse_selection(raw, count):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Interactive model tester."
-    )
+    parser = argparse.ArgumentParser(description="Interactive model tester.")
     parser.add_argument(
         "--all",
         action="store_true",
@@ -230,13 +228,13 @@ def main():
         default=None,
         help="non-interactive selection: '1,3,5' or '1-4' (1-based)",
     )
-    parser.add_argument("--prompt", default=None,
-                        help="one prompt for every model")
+    parser.add_argument("--prompt", default=None, help="one prompt for every model")
     parser.add_argument("--temperature", type=float, default=0.5)
     parser.add_argument("--chars", type=int, default=100)
     parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--save", default=None,
-                        help="also write the table to a Markdown file")
+    parser.add_argument(
+        "--save", default=None, help="also write the table to a Markdown file"
+    )
     args = parser.parse_args()
 
     paths = sorted(glob.glob("weights-*.json"))
@@ -303,9 +301,7 @@ def main():
     results = []
     for i in picked:
         path, cfg, loss = entries[i]
-        use_prompt = prompt or (
-            PROMPT_WIKITEXT if cfg["is_wiki"] else PROMPT_COMBINED
-        )
+        use_prompt = prompt or (PROMPT_WIKITEXT if cfg["is_wiki"] else PROMPT_COMBINED)
         print(f"\nGenerating: {config_label(cfg)} ...", flush=True)
         try:
             model, encode, decode = load_model(cfg, path)
@@ -357,8 +353,7 @@ def main():
             loss_s = f"{loss:.4f}" if loss is not None else "-"
             excerpt = " ".join(out.split())
             lines.append(
-                f"| {config_label(cfg)} | {loss_s} | {use_prompt} | "
-                f"{excerpt} |"
+                f"| {config_label(cfg)} | {loss_s} | {use_prompt} | " f"{excerpt} |"
             )
         lines.append("")
         for path, cfg, loss, use_prompt, out in results:
