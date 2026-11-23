@@ -8,6 +8,7 @@ __pycache__/
 sprint-03-transformer/data/*.tokens.npy
 sprint-03-transformer/data/*.tokens.json
 sprint-03-transformer/data/*.parquet
+sprint-03-transformer/data/wiki103-*.txt
 
 # Model weights: kept locally only. Runs are a learning record, not models to
 # share; logs, configs, merges and reports are committed instead.
