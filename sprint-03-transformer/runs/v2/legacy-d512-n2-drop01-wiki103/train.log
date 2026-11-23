@@ -1,0 +1,10 @@
+tokenizer bpe: mapped 48517849 cached tokens from data/wiki103-100m-bpe512.tokens.npy
+split: 48032671 train tokens, 485178 held out, 512 eval windows
+resumed from runs/legacy/weights-numpy-d512-n2-bpe-wiki103.json (50 weights)
+engine numpy, vocab 512, params 50, d_model 512, block 64, steps 0, lr 0.05, batch 16, schedule cosine, warmup 500, clip 1.0, dtype float32
+eval step 0  val_loss 3.8451  val_bpb 2.7340
+saved 50 weights to /Users/badjessab/projects/ai_stack/ai-stack-sprints/sprint-03-transformer/runs/v2/legacy-d512-n2-drop01-wiki103/weights.npz
+
+2s total, 1.63s/step
+
+--- sample (greedy, 0 tokens) ---

@@ -18,54 +18,18 @@ from __future__ import annotations
 MIN_VOCAB_SIZE = 256  # max size for base vocabulary
 
 
-def get_stats(token_ids: list[int]) -> dict[tuple[int, int], int]:
-    """Count how often each adjacent pair occurs.
+# get_stats and merge_pair live in bpe_common.py (shared with Part 3).
+# Relative import when loaded as src.tokenizer (tests); otherwise load it
+# from this file's own folder (Sprint 3's scripts put src/ on sys.path, and
+# Part 2 loads this file directly by path).
+try:
+    from .bpe_common import get_stats, merge_pair
+except ImportError:
+    import os as _os
+    import sys as _sys
 
-    Example: get_stats([1, 2, 1, 2, 1]) == {(1, 2): 2, (2, 1): 2}
-
-    Hint: one pass, one dict. Overlapping pairs both count.
-    """
-
-    # Initial approach, two pointers at i and i+1
-    # if pair (i, i+1) exist in the dictionay, increase the count
-    # if first time then set it to 1 in the hashmap
-
-    result = {}
-    for i in range(len(token_ids) - 1):
-        pair = (token_ids[i], token_ids[i + 1])
-        if pair in result:
-            result[pair] = result[pair] + 1
-        else:
-            result[pair] = 1
-
-    return result
-
-
-def merge_pair(token_ids: list[int], pair: tuple[int, int], new_id: int) -> list[int]:
-    """Return a NEW list where every non-overlapping occurrence of `pair`
-    is replaced by `new_id`, scanning left to right.
-
-    Example: merge_pair([1, 2, 1, 2, 1], (1, 2), 99) == [99, 99, 1]
-
-    Careful: after merging, the scan continues AFTER the new token —
-    the new token does not start a new pair within this pass.
-    """
-    result = []
-    size = len(token_ids)
-    i = 0
-    while i <= (size - 1):
-        if i == size - 1:
-            result.append(token_ids[i])
-            return result
-
-        current_pair = (token_ids[i], token_ids[i + 1])
-        if current_pair == pair:
-            result.append(new_id)
-            i += 2  # non-overlapping pair so we want to skip
-        else:
-            result.append(token_ids[i])
-            i += 1
-    return result
+    _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+    from bpe_common import get_stats, merge_pair
 
 
 class BPETokenizer:

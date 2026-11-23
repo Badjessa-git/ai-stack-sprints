@@ -1,5 +1,10 @@
 {
     "cSpell.words": [
         "topo"
+    ],
+    "python.REPL.enableREPLSmartSend": false,
+    "python.analysis.extraPaths": [
+        "./sprint-03-transformer/src",
+        "./sprint-01-bpe-tokenizer/src"
     ]
 }
