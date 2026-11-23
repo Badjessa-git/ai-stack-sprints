@@ -12,18 +12,23 @@ transformer, streams tokens over HTTP, and batches many requests at once.
 
 ## Roadmap
 
+Every sprint below is scaffolded: README, tests, stubs, benchmarks and a
+post outline. Each test suite was checked against a full reference
+solution, which is not in the repo. The stubs fail only with
+`NotImplementedError` until you write them.
+
 | # | Sprint | You build by hand | Milestone | Status |
 |---|--------|-------------------|-----------|--------|
 | 01 | [BPE tokenizer](sprint-01-bpe-tokenizer/) | Byte-level BPE; Part 2 speed pass; Part 3 regex pre-split | Lossless, 2× compression | ✅ |
 | 02 | [Autograd engine](sprint-02-autograd-engine/) | Scalar `Value` and backprop | Trains an MLP on moons | ✅ |
-| 03 | [Transformer + tiny LM](sprint-03-transformer/) | Attention, block, training loop; v2 fixes; v3 tokenizer grid | 1.62 bits/byte on WikiText-103 | 🟡 wrapping up |
-| 3.5 | *Optional:* tensor autograd | NumPy `Tensor` backward: broadcasting, batched matmul | The fast engine is yours too | ⬜ |
-| 04 | GPT-2 in your transformer | safetensors reader, weight-name mapping, GPT-2 byte table on the Part 3 tokenizer | **Your code writes fluent text**; logits match the reference | ⬜ |
-| 05 | KV cache + sampling | KV cache in attention; temperature, top-k, top-p | Tokens/sec before and after | ⬜ |
-| 06 | Inference server | HTTP, streaming (SSE), OpenAI-style `/v1/completions` | **`curl` your own server running GPT-2** | ⬜ |
-| 07 | Continuous batching + paged KV | Scheduler simulator first, then the real one in the server | Throughput vs latency under load | ⬜ |
-| 08 | Modern architecture | RoPE, RMSNorm, SwiGLU, GQA; load SmolLM-135M | A modern small model served from your code | ⬜ |
-| 09 | Quantization + speed | int8 weights, a profiling pass | Size and speed vs quality, measured | ⬜ |
+| 03 | [Transformer + tiny LM](sprint-03-transformer/) | Attention, block, training loop; v2 fixes; v3 tokenizer grid | 1.57 bits/byte on WikiText-103 | 🟡 wrapping up |
+| 3.5 | [Tensor autograd](sprint-03b-tensor-autograd/) *(optional)* | NumPy `Tensor` backward: broadcasting, batched matmul, fused softmax | The fast engine is yours too | ⬜ |
+| 04 | [GPT-2 in your code](sprint-04-gpt2/) | safetensors reader, GPT-2 byte table on the Part 3 tokenizer, forward-only GPT-2 | **"Albert Einstein was a great scientist"**, 1.12 bits/byte | ⬜ |
+| 05 | [KV cache + sampling](sprint-05-kv-cache/) | KV cache with an offset mask; temperature, top-k, top-p; streaming `generate` | 22× faster at 400 tokens of context | ⬜ |
+| 06 | [Inference server](sprint-06-inference-server/) | OpenAI-style `/v1/completions`, SSE streaming, UTF-8 and stop strings across tokens | **`curl` your own server running GPT-2** | ⬜ |
+| 07 | [Continuous batching + paged KV](sprint-07-batching/) | Scheduler simulator, block allocator, batched decode, preemption | 4 clients: 55 → 101 tokens/sec | ⬜ |
+| 08 | [Modern architecture](sprint-08-modern-arch/) | RMSNorm, RoPE, SwiGLU, GQA; `tokenizer.json` | **SmolLM-135M served from your code** ("...is Paris.") | ⬜ |
+| 09 | [Quantization + speed](sprint-09-quantization/) | int8 per-channel, int4 per-group, nibble packing, a decode profiler | Half the size, same text | ⬜ |
 
 Why this order: GPT-2 is the architecture Sprint 03 already built, and its
 tokenizer is the algorithm Sprint 01 Part 3 built. That makes 04 the
@@ -33,18 +38,35 @@ models are built.
 
 **Data-systems track** (later, or in parallel, off the serving path):
 
-| Sprint | You build by hand | Post (working title) |
-|--------|-------------------|----------------------|
-| Vector search | Heaps, HNSW / IVF | Recall vs latency: the only chart that matters |
-| Hybrid retrieval / RAG | Inverted index, BM25; pointed at your own server | RAG is a search problem wearing a chatbot costume |
-| LSM-tree KV store | Sorted runs, Bloom filters | Write fast, read… complicated |
+| # | Sprint | You build by hand | Post (working title) | Status |
+|---|--------|-------------------|----------------------|--------|
+| 10 | [Vector search](sprint-10-vector-search/) | Brute force, k-means/IVF, HNSW with the neighbour heuristic | Recall vs latency: the only chart that matters | ⬜ |
+| 11 | [Hybrid retrieval + RAG](sprint-11-hybrid-retrieval/) | Inverted index, BM25, SIF embeddings, RRF; RAG against your server | RAG is a search problem wearing a chatbot costume | ⬜ |
+| 12 | [LSM-tree KV store](sprint-12-lsm-tree/) | WAL, SSTables, Bloom filters, compaction, crash recovery | Write fast, read… complicated | ⬜ |
 
-## Why one repo
+**Side quest: fine-tuning.** A Sprint 4 fine-tuning scaffold (play
+classification) lives on the branch `scaffold/sprint-04-finetuning`. Its
+Track 2 assumed GPT-2 needed PyTorch. After Sprint 04 it doesn't, and
+with Sprint 3.5's autograd you can fine-tune GPT-2 on your own engine.
+It fits after Sprint 04 or 05.
 
-The sprints are layers of one stack, and later ones import earlier code:
-Sprint 03 trains on the Sprint 01 tokenizer, Sprint 04 loads GPT-2 into the
-Sprint 03 transformer, and the server in 06–07 runs the model from 04–05.
-Separate repos would turn that reuse into copy-paste. Here it's an import.
+## How the sprints depend on each other
+
+Later sprints import your earlier code directly (`src/deps.py`), so each
+builds on what you wrote, not on a copy:
+
+```
+01 tokenizer ──► 03 transformer ──► 04 GPT-2 ──► 05 KV cache ──► 06 server ──► 07 batching
+                                       │              │              ▲
+                                       │              └──► 08 SmolLM ─┘ (served by 06)
+                                       ├──► 09 quantization (runs 04's model unchanged)
+                                       └──► 10 vector search (GPT-2's embeddings) ──► 11 retrieval + RAG (asks 08's server)
+02 autograd ──► 3.5 tensor autograd                                       12 LSM tree (standalone)
+```
+
+Models are downloaded once: GPT-2 by `make download` in Sprint 04 (~550
+MB), SmolLM by `make download` in Sprint 08 (~540 MB). Both are
+gitignored. Tests that need them skip until they're there.
 
 ## Setup
 
@@ -72,6 +94,7 @@ python3 -m unittest part2/test_equivalence.py -v                # Part 2: identi
 python3 -m unittest part3/test_regex_tokenizer.py -v            # Part 3: 34 tests
 cd ../sprint-02-autograd-engine && make test
 cd ../sprint-03-transformer && make test
+for s in ../sprint-03b-* ../sprint-0[4-9]-* ../sprint-1[0-2]-*; do (cd $s && make test); done
 ```
 
 ## Repo map
