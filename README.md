@@ -21,7 +21,7 @@ solution, which is not in the repo. The stubs fail only with
 |---|--------|-------------------|-----------|--------|
 | 01 | [BPE tokenizer](sprint-01-bpe-tokenizer/) | Byte-level BPE; Part 2 speed pass; Part 3 regex pre-split | Lossless, 2× compression | ✅ |
 | 02 | [Autograd engine](sprint-02-autograd-engine/) | Scalar `Value` and backprop | Trains an MLP on moons | ✅ |
-| 03 | [Transformer + tiny LM](sprint-03-transformer/) | Attention, block, training loop; v2 fixes; v3 tokenizer grid | 1.57 bits/byte on WikiText-103 | 🟡 wrapping up |
+| 03 | [Transformer + tiny LM](sprint-03-transformer/) | Attention, block, training loop; v2 fixes; v3 tokenizer grid | 1.44 bits/byte on WikiText-103 | 🟡 wrapping up |
 | 3.5 | [Tensor autograd](sprint-03b-tensor-autograd/) *(optional)* | NumPy `Tensor` backward: broadcasting, batched matmul, fused softmax | The fast engine is yours too | ⬜ |
 | 04 | [GPT-2 in your code](sprint-04-gpt2/) | safetensors reader, GPT-2 byte table on the Part 3 tokenizer, forward-only GPT-2 | **"Albert Einstein was a great scientist"**, 1.12 bits/byte | ⬜ |
 | 05 | [KV cache + sampling](sprint-05-kv-cache/) | KV cache with an offset mask; temperature, top-k, top-p; streaming `generate` | 22× faster at 400 tokens of context | ⬜ |
@@ -45,7 +45,7 @@ models are built.
 | 12 | [LSM-tree KV store](sprint-12-lsm-tree/) | WAL, SSTables, Bloom filters, compaction, crash recovery | Write fast, read… complicated | ⬜ |
 
 **Side quest: fine-tuning.** A Sprint 4 fine-tuning scaffold (play
-classification) lives on the branch `scaffold/sprint-04-finetuning`. Its
+classification) is in [`sprint-04-finetuning/`](sprint-04-finetuning/). Its
 Track 2 assumed GPT-2 needed PyTorch. After Sprint 04 it doesn't, and
 with Sprint 3.5's autograd you can fine-tune GPT-2 on your own engine.
 It fits after Sprint 04 or 05.

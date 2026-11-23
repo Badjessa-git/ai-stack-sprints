@@ -118,8 +118,8 @@ Measured with the reference solution on the dev Mac (2 threads):
 ## What's next
 
 - **Sprint 05:** a KV cache and sampling.
-- **Sprint 04-finetuning** (scaffold on branch
-  `scaffold/sprint-04-finetuning`): its Track 2 assumed GPT-2 needed
+- **Sprint 04-finetuning** ([`../sprint-04-finetuning/`](../sprint-04-finetuning/)):
+  its Track 2 assumed GPT-2 needed
   PyTorch. After this sprint it doesn't. Fine-tuning GPT-2 needs a
   backward pass, so it pairs with Sprint 3.5's tensor autograd.
 
