@@ -295,6 +295,44 @@ corrects for this, but sample length doesn't.
 V1 can't appear in this table, since it never trained on WikiText. At
 3.8 tokens/sec, one epoch of 100M characters would take most of a year.
 
+## More passes vs more data (d512-n4 rx4k, same held-out tokens)
+
+| Run | Data | Steps | Time | Final val bpb |
+|---|---|---|---|---|
+| 1 epoch | 100M-char subset (28M tokens) | 27,399 | 3.9 h* | 1.439 |
+| 2 epochs | same subset, twice | 54,798 | 5.6 h | 1.372 |
+| Full WikiText-103, 1 epoch | 153M tokens | 149,207 | 15.1 h | **1.253** |
+
+*Ran alongside the other grid runs, so it was slower per step.
+
+All three share the step-0 score (3.4472) and the eval windows, so the
+numbers compare directly. The val curves at equal step counts:
+
+| Step | 1 epoch | 2 epochs | Full |
+|---|---|---|---|
+| 24,000 | 1.449 | 1.480 | 1.491 |
+| 54,000 | — | 1.374 | 1.373 |
+| 149,207 | — | — | 1.253 |
+
+- **More data wins, by 0.12 bpb over 2 epochs.** It was still falling
+  at the end (−0.005 over the last ~13k steps), so this model isn't
+  saturated at 153M tokens either.
+- **At 54k steps the full run already matches the 2-epoch run's final
+  score.** At that point it still has a high learning rate, while the
+  2-epoch run has fully cooled down. So the comparison is unfair to the
+  full run, and seeing repeated text again was worth about the same
+  as seeing new text. A fair matched-compute test would be a 54,798-step
+  run on the full data with its own cosine schedule. That hasn't been run.
+- **Early on, the shorter schedule looks better** (1.449 vs 1.491 at
+  24k) only because its learning rate decays sooner. Compare final scores,
+  not mid-run ones, across different schedules.
+- **The loops survive.** "Albert Einstein was a", seed 1, full model:
+  "…a position he held until his death in 1913 . … In 1913 ,
+  Einsteinsteinsteinsteinstein…". The 2-epoch model loops on "…onifolonifol…".
+  The facts and the sentence structure improve, but the repetition
+  failure doesn't. It comes from the 64-token context and greedy-ish
+  sampling, not from too little data.
+
 ## Still to check before publishing
 
 - The V1 → V2 speedup: re-run `python3 benchmarks/bench_engines.py` and
@@ -304,5 +342,5 @@ V1 can't appear in this table, since it never trained on WikiText. At
 - d512-n4 nodrop has no V3 run (the V3 d512-n4 used dropout 0.1).
   Comparing V3's 1.621 with V4's no-dropout runs mixes two changes, and
   dropout cost ~0.03 at d512-n2. Say so, or note it as a caveat.
-- Whether the 4k model's loops shrink with more training: a 2-epoch rx4k
-  run is the experiment.
+- ~~Whether the 4k model's loops shrink with more training.~~ Checked
+  (see "More passes vs more data"): they don't, at 2 epochs or on 5.4x the data.
