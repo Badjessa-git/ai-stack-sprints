@@ -320,8 +320,8 @@ numbers compare directly. The val curves at equal step counts:
 - **At 54k steps the full run already matches the 2-epoch run's final
   score.** At that point it still has a high learning rate, while the
   2-epoch run has fully cooled down. So the comparison is unfair to the
-  full run, and seeing repeated text again was worth about the same
-  as seeing new text. A fair matched-compute test would be a 54,798-step
+  full run. At equal compute, new text is at least as good as a second
+  pass, and probably better. A fair matched-compute test would be a 54,798-step
   run on the full data with its own cosine schedule. That hasn't been run.
 - **Early on, the shorter schedule looks better** (1.449 vs 1.491 at
   24k) only because its learning rate decays sooner. Compare final scores,
